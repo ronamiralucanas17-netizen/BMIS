@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm border-0 mt-5">
+            <div class="card-header bg-primary text-white p-3">
+                <h4 class="mb-0 text-center"><i class="fas fa-concierge-bell me-2"></i> {{ title }}</h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'residents:service_list' %}" class="btn btn-secondary mt-3">Cancel</a>
+                        <button type="submit" class="btn btn-primary mt-3">Save Service</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

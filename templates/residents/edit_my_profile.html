@@ -1,0 +1,369 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="fas fa-user-edit me-2"></i> Edit My Profile</h4>
+                </div>
+                <div class="card-body">
+                    {% if resident.profile_status == 'INCOMPLETE' %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i> <strong>Incomplete Profile!</strong> 
+                        Fields highlighted in red need to be filled up to complete your profile.
+                    </div>
+                    {% endif %}
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+
+                        <h5 class="mb-3 border-bottom pb-2"><i class="fas fa-id-card me-2"></i>Personal Information</h5>
+                        <div class="row">
+                            <div class="col-md-4">{{ form.first_name|as_crispy_field }}</div>
+                            <div class="col-md-4">{{ form.last_name|as_crispy_field }}</div>
+                            <div class="col-md-4">{{ form.middle_name|as_crispy_field }}</div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">{{ form.date_of_birth|as_crispy_field }}</div>
+                            <div class="col-md-4">{{ form.gender|as_crispy_field }}</div>
+                            <div class="col-md-4">{{ form.civil_status|as_crispy_field }}</div>
+                        </div>
+
+                        <div class="row" id="spouse_name_container" style="display:none;">
+                            <div class="col-md-12">{{ form.spouse_name|as_crispy_field }}</div>
+                        </div>
+
+                        <h5 class="mb-3 mt-4 border-bottom pb-2"><i class="fas fa-map-marker-alt me-2"></i>Location Information</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.new_barangay|as_crispy_field }}
+                                <p class="small text-muted">Select barangay if changed</p>
+                            </div>
+                            <div class="col-md-6">{{ form.household|as_crispy_field }}</div>
+                        </div>
+
+                        <div class="bg-light p-3 border rounded mb-3">
+                            <h6 class="small fw-bold text-muted mb-2">Don't have a household number? Add manually:</h6>
+                            <div class="row">
+                                <div class="col-md-6">{{ form.new_household_number|as_crispy_field }}</div>
+                                <div class="col-md-6">{{ form.no_household_number|as_crispy_field }}</div>
+                            </div>
+                            {{ form.new_household_address|as_crispy_field }}
+                        </div>
+
+                        <h5 class="mb-3 mt-4 border-bottom pb-2"><i class="fas fa-phone-alt me-2"></i>Contact Information</h5>
+                        <div class="row">
+                            <div class="col-md-6">{{ form.contact_number|as_crispy_field }}</div>
+                            <div class="col-md-6">{{ form.email|as_crispy_field }}</div>
+                        </div>
+
+                        <h5 class="mb-3 mt-4 border-bottom pb-2"><i class="fas fa-graduation-cap me-2"></i> Education & Employment</h5>
+                        <div class="row" id="educational_attainment_container">
+                            <div class="col-md-12">{{ form.educational_attainment|as_crispy_field }}</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.is_student|as_crispy_field }}
+                        </div>
+                        
+                        <div id="student_fields" style="display:none;">
+                            <div class="row">
+                                <div class="col-md-12">{{ form.student_level|as_crispy_field }}</div>
+                            </div>
+                            <div class="row mt-2" id="elementary_details" style="display:none;">
+                                <div class="col-md-12">{{ form.elementary_school|as_crispy_field }}</div>
+                            </div>
+                            <div class="row mt-2" id="high_school_details" style="display:none;">
+                                <div class="col-md-12">{{ form.high_school|as_crispy_field }}</div>
+                            </div>
+                            <div class="row mt-2" id="college_details" style="display:none;">
+                                <div class="col-md-12">{{ form.college|as_crispy_field }}</div>
+                            </div>
+                        </div>
+
+                        <div id="employment_fields">
+                            <div class="row">
+                                <div class="col-md-6" id="occupation_container">{{ form.occupation|as_crispy_field }}</div>
+                                <div class="col-md-6" id="employment_status_container">{{ form.employment_status|as_crispy_field }}</div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6" id="income_container">{{ form.income|as_crispy_field }}</div>
+                                <div class="col-md-6">{{ form.is_voter|as_crispy_field }}</div>
+                            </div>
+                            <div class="mb-3" id="employment_history_container">
+                                {{ form.employment_history|as_crispy_field }}
+                            </div>
+                        </div>
+
+                        <h5 class="mb-3 mt-4 border-bottom pb-2"><i class="fas fa-users me-2"></i> Family Information</h5>
+                        <div class="row">
+                            <div class="col-md-6">{{ form.has_children|as_crispy_field }}</div>
+                            <div class="col-md-6" id="num_children_container" style="display:none;">
+                                {{ form.num_children|as_crispy_field }}
+                            </div>
+                        </div>
+
+                        <div id="children_inputs_container" class="bg-light p-3 border rounded mb-3" style="display:none;">
+                            <h6 class="fw-bold mb-3 small text-muted"><i class="fas fa-child me-1"></i> Children Details</h6>
+                            <div id="children_rows"></div>
+                            {{ form.children_details }}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.father_name|as_crispy_field }}
+                                <div class="form-check mb-3">
+                                    {{ form.is_father_deceased }}
+                                    <label class="form-check-label small text-muted" for="id_is_father_deceased">Deceased?</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.mother_maiden_name|as_crispy_field }}
+                                <div class="form-check mb-3">
+                                    {{ form.is_mother_deceased }}
+                                    <label class="form-check-label small text-muted" for="id_is_mother_deceased">Deceased?</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'residents:my_profile' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i> Back to Profile
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i> Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function toggleSpouseField() {
+        const civilStatusInput = document.getElementById('id_civil_status');
+        const spouseContainer = document.getElementById('spouse_name_container');
+        if (civilStatusInput && spouseContainer) {
+            const status = civilStatusInput.value;
+            const showSpouse = ['MARRIED', 'SEPARATED', 'WIDOWED', 'DIVORCED', 'LIVE_IN'].includes(status);
+            spouseContainer.style.display = showSpouse ? 'block' : 'none';
+            
+            if (!showSpouse) {
+                const spouseInput = document.getElementById('id_spouse_name');
+                if (spouseInput) spouseInput.value = '';
+            }
+        }
+    }
+
+    function toggleChildrenFields() {
+        const hasChildrenCheckbox = document.getElementById('id_has_children');
+        const numContainer = document.getElementById('num_children_container');
+        const inputsContainer = document.getElementById('children_inputs_container');
+        const numInput = document.getElementById('id_num_children');
+        
+        if (!hasChildrenCheckbox || !numContainer || !inputsContainer) return;
+
+        const isChecked = hasChildrenCheckbox.checked;
+        numContainer.style.display = isChecked ? 'block' : 'none';
+        inputsContainer.style.display = isChecked ? 'block' : 'none';
+        
+        if (isChecked && numInput) {
+            numInput.focus();
+        }
+        
+        if (!isChecked) {
+            if (numInput) numInput.value = 0;
+            const rowsContainer = document.getElementById('children_rows');
+            if (rowsContainer) rowsContainer.innerHTML = '';
+            const detailsInput = document.getElementById('id_children_details');
+            if (detailsInput) detailsInput.value = '';
+        }
+    }
+
+    function generateChildrenRows() {
+        const numInput = document.getElementById('id_num_children');
+        if (!numInput) return;
+
+        const count = parseInt(numInput.value) || 0;
+        const container = document.getElementById('children_rows');
+        const detailsInput = document.getElementById('id_children_details');
+        
+        if (!container || !detailsInput) return;
+
+        const currentDetails = detailsInput.value;
+        let existingData = [];
+        
+        try {
+            if (currentDetails && currentDetails.startsWith('[')) {
+                existingData = JSON.parse(currentDetails);
+            }
+        } catch(e) { 
+            console.error("Error parsing children details", e); 
+        }
+
+        container.innerHTML = '';
+        for (let i = 0; i < count; i++) {
+            const child = existingData[i] || { name: '', age: '' };
+            const row = document.createElement('div');
+            row.className = 'row mb-2 child-row';
+            row.innerHTML = `
+                <div class="col-md-8">
+                    <input type="text" class="form-control form-control-sm child-name" placeholder="Child's Full Name" value="${child.name || ''}">
+                </div>
+                <div class="col-md-4">
+                    <input type="number" class="form-control form-control-sm child-age" placeholder="Age" value="${child.age || ''}">
+                </div>
+            `;
+            container.appendChild(row);
+        }
+        
+        // Add event listeners to new inputs
+        container.querySelectorAll('input').forEach(input => {
+            input.addEventListener('input', updateChildrenJSON);
+        });
+        
+        updateChildrenJSON();
+    }
+
+    function updateChildrenJSON() {
+        const rows = document.querySelectorAll('.child-row');
+        const detailsInput = document.getElementById('id_children_details');
+        if (!detailsInput) return;
+
+        const data = Array.from(rows).map(row => ({
+            name: row.querySelector('.child-name').value,
+            age: row.querySelector('.child-age').value
+        }));
+        detailsInput.value = JSON.stringify(data);
+    }
+
+    function toggleStudentFields() {
+        const isStudentCheckbox = document.getElementById('id_is_student');
+        const studentFields = document.getElementById('student_fields');
+        if (isStudentCheckbox && studentFields) {
+            const isStudent = isStudentCheckbox.checked;
+            studentFields.style.display = isStudent ? 'block' : 'none';
+            
+            const eduContainer = document.getElementById('educational_attainment_container');
+            const occupationContainer = document.getElementById('occupation_container');
+            const empStatusContainer = document.getElementById('employment_status_container');
+            const incomeContainer = document.getElementById('income_container');
+            const employmentHistoryContainer = document.getElementById('employment_history_container');
+            
+            if (eduContainer) eduContainer.style.display = isStudent ? 'none' : 'block';
+            if (occupationContainer) occupationContainer.style.display = isStudent ? 'none' : 'block';
+            if (empStatusContainer) empStatusContainer.style.display = isStudent ? 'none' : 'block';
+            if (incomeContainer) incomeContainer.style.display = isStudent ? 'none' : 'block';
+            if (employmentHistoryContainer) employmentHistoryContainer.style.display = isStudent ? 'none' : 'block';
+            
+            // Clear employment fields if student is checked
+            if (isStudent) {
+                const eduInput = document.getElementById('id_educational_attainment');
+                const occupationInput = document.getElementById('id_occupation');
+                const empStatusInput = document.getElementById('id_employment_status');
+                const incomeInput = document.getElementById('id_income');
+                const empHistoryInput = document.getElementById('id_employment_history');
+                
+                if (eduInput) eduInput.value = '';
+                if (occupationInput) occupationInput.value = '';
+                if (empStatusInput) empStatusInput.value = '';
+                if (incomeInput) incomeInput.value = '';
+                if (empHistoryInput) empHistoryInput.value = '';
+                
+                toggleStudentLevelFields(); // Update sub-fields
+            } else {
+                // Reset student level when not student
+                const levelInput = document.getElementById('id_student_level');
+                if (levelInput) levelInput.value = '';
+                toggleStudentLevelFields();
+            }
+        }
+    }
+
+    function toggleStudentLevelFields() {
+        const levelInput = document.getElementById('id_student_level');
+        const elemDetails = document.getElementById('elementary_details');
+        const highDetails = document.getElementById('high_school_details');
+        const collegeDetails = document.getElementById('college_details');
+        
+        console.log("toggleStudentLevelFields called");
+        if (!levelInput) {
+            console.log("levelInput not found");
+            return;
+        }
+        
+        const level = levelInput.value ? levelInput.value.toUpperCase() : "";
+        console.log("Current level value (uppercased):", level);
+
+        if (elemDetails) {
+            elemDetails.style.display = level === 'ELEMENTARY' ? 'block' : 'none';
+            console.log("Elementary details display:", elemDetails.style.display);
+        }
+        if (highDetails) {
+            highDetails.style.display = (level === 'HIGHSCHOOL' || level === 'HIGH SCHOOL') ? 'block' : 'none';
+            console.log("Highschool details display:", highDetails.style.display);
+        }
+        if (collegeDetails) {
+            collegeDetails.style.display = level === 'COLLEGE' ? 'block' : 'none';
+            console.log("College details display:", collegeDetails.style.display);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Spouse Field Toggle
+        const civilStatusInput = document.getElementById('id_civil_status');
+        if (civilStatusInput) {
+            civilStatusInput.addEventListener('change', toggleSpouseField);
+            toggleSpouseField();
+        }
+
+        // Resident Student Toggle
+        const isStudentCheckbox = document.getElementById('id_is_student');
+        
+        if (isStudentCheckbox) {
+            isStudentCheckbox.addEventListener('change', toggleStudentFields);
+            toggleStudentFields();
+        }
+
+        const levelInput = document.getElementById('id_student_level');
+        if (levelInput) {
+            levelInput.addEventListener('change', toggleStudentLevelFields);
+        }
+
+        // Children Fields Toggle
+        const hasChildrenCheckbox = document.getElementById('id_has_children');
+        const numChildrenInput = document.getElementById('id_num_children');
+
+        if (hasChildrenCheckbox) {
+            hasChildrenCheckbox.addEventListener('change', toggleChildrenFields);
+            toggleChildrenFields();
+        }
+
+        if (numChildrenInput) {
+            numChildrenInput.addEventListener('change', generateChildrenRows);
+            numChildrenInput.addEventListener('keyup', generateChildrenRows);
+        }
+
+        // Initial generation if checked
+        if (hasChildrenCheckbox && hasChildrenCheckbox.checked) {
+            generateChildrenRows();
+        }
+    });
+</script>
+{% endblock %}

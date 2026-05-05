@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow border-0 mt-5">
+            <div class="card-header bg-primary text-white p-3">
+                <h4 class="mb-0 text-center"><i class="fas fa-user-plus me-2"></i> {{ title|default:"Registration" }}</h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                    <div class="mb-3">
+                        <small class="text-muted">
+                            By registering, you agree to our <a href="#" data-bs-toggle="modal" data-bs-target="#termsModal">Data Privacy Terms and Conditions</a>.
+                        </small>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary mt-3">Register</button>
+                    </div>
+                </form>
+                <div class="text-center mt-3">
+                    <p>Already have an account? <a href="{% url 'users:login' %}">Login here</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Terms and Conditions Modal -->
+<div class="modal fade" id="termsModal" tabindex="-1" aria-labelledby="termsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="termsModalLabel">Data Privacy Terms and Conditions</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h6>1. Collection of Information</h6>
+                <p>We collect personal information such as name, date of birth, address, and family details for the purpose of barangay management and service delivery.</p>
+                
+                <h6>2. Use of Information</h6>
+                <p>The collected information is used solely for official barangay business, including resident identification, disaster management, and social service allocation.</p>
+                
+                <h6>3. Protection of Information</h6>
+                <p>We implement security measures to protect your personal data from unauthorized access, disclosure, or misuse in compliance with the Data Privacy Act of 2012.</p>
+                
+                <h6>4. Your Rights</h6>
+                <p>You have the right to access, correct, or request the deletion of your personal information stored in our system.</p>
+                
+                <h6>5. Consent</h6>
+                <p>By registering an account, you provide explicit consent to the collection and processing of your personal data as described above.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

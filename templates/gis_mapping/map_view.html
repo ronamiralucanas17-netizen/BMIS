@@ -1,0 +1,523 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>GIS Integrated Mapping (Ormoc City)</h2>
+        <div class="btn-group">
+            <button class="btn btn-outline-dark" onclick="toggleLayer('households')">Toggle Households</button>
+            <button class="btn btn-outline-dark" onclick="toggleLayer('barangay_boundaries')">Toggle Boundaries</button>
+            <button class="btn btn-outline-dark" onclick="toggleLayer('infrastructure')">Toggle Infrastructure</button>
+            <button class="btn btn-outline-dark" onclick="toggleLayer('hazards')">Toggle Hazard Areas</button>
+            <button class="btn btn-outline-dark" onclick="toggleLayer('evacuation')">Toggle Evacuation Sites</button>
+            <button class="btn btn-outline-dark" onclick="toggleLayer('demographics')">Toggle Demographics</button>
+        </div>
+    </div>
+
+    {% if can_edit_gis %}
+    <div class="mb-3 d-flex gap-2 flex-wrap">
+        {% if user.is_barangay_admin %}
+        <a href="{% url 'gis_mapping:edit_barangay_boundary' %}" class="btn btn-dark">
+            <i class="fas fa-draw-polygon me-1"></i> Set Barangay Boundary
+        </a>
+        {% endif %}
+        <a href="{% url 'gis_mapping:add_infrastructure' %}" class="btn btn-info text-white">
+            <i class="fas fa-building me-1"></i> Add Infrastructure
+        </a>
+        <a href="{% url 'gis_mapping:add_disaster_area' %}" class="btn btn-success">
+            <i class="fas fa-exclamation-triangle me-1"></i> Add Hazard Area
+        </a>
+        <a href="{% url 'gis_mapping:add_evacuation_site' %}" class="btn text-white" style="background-color: #6f42c1;">
+            <i class="fas fa-umbrella-beach me-1"></i> Add Evacuation Site
+        </a>
+    </div>
+    {% endif %}
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-0">
+                    <div id="main-map" style="height: 700px; width: 100%;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white">
+                    <strong>Demographics</strong>
+                </div>
+                <div class="card-body">
+                    <div id="demo-pane-empty" class="text-muted small">
+                        Click a demographic value (e.g., employed, unemployed, seniors, students) on the map to show the list here.
+                    </div>
+                    <div id="demo-pane" class="d-none">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 id="demo-title" class="mb-0"></h6>
+                            <span id="demo-count" class="badge bg-secondary"></span>
+                        </div>
+                        <div id="demo-detail" class="border rounded p-2 mb-2 d-none">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div id="demo-detail-name" class="fw-semibold"></div>
+                                    <div id="demo-detail-meta" class="text-muted small"></div>
+                                </div>
+                                <a id="demo-detail-link" class="btn btn-sm btn-outline-primary d-none" href="#">View</a>
+                            </div>
+                            <div class="mt-2 small">
+                                <div><span class="text-muted">Contact:</span> <span id="demo-detail-contact"></span></div>
+                                <div><span class="text-muted">Household #:</span> <span id="demo-detail-household"></span></div>
+                                <div><span class="text-muted">Employment:</span> <span id="demo-detail-employment"></span></div>
+                                <div><span class="text-muted">Student:</span> <span id="demo-detail-student"></span></div>
+                            </div>
+                        </div>
+                        <div class="table-responsive" style="max-height: 640px; overflow: auto;">
+                            <table class="table table-sm table-striped align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Purok</th>
+                                        <th>Employment</th>
+                                        <th>Student</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="demo-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if can_edit_gis %}
+    <!-- Infrastructure Management -->
+    <div class="mt-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Manage Infrastructure</h5>
+            <form method="post" action="{% url 'gis_mapping:delete_all_infrastructure' %}" onsubmit="return confirm('Delete ALL infrastructure records shown on the map? This cannot be undone.');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                    <i class="fas fa-trash me-1"></i> Delete All
+                </button>
+            </form>
+        </div>
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Barangay</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for infra in infrastructure %}
+                <tr>
+                    <td>{{ infra.name }}</td>
+                    <td><span class="badge bg-secondary">{{ infra.get_type_display }}</span></td>
+                    <td>{{ infra.barangay_ref.name|default:"Unassigned" }}</td>
+                    <td>
+                        <a href="{% url 'gis_mapping:delete_infrastructure' infra.id %}" class="btn btn-sm btn-danger">
+                            <i class="fas fa-trash"></i> Delete
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center text-muted">No infrastructure found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Hazard Areas Management -->
+    <div class="mt-3">
+        <h5>Manage Hazard Areas</h5>
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Risk Level</th>
+                    <th>Barangay</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for area in disaster_areas %}
+                <tr>
+                    <td>{{ area.name }}</td>
+                    <td><span class="badge bg-warning text-dark">{{ area.get_type_display }}</span></td>
+                    <td>
+                        {% if area.risk_level == 1 %}
+                            <span class="badge bg-success">Low</span>
+                        {% elif area.risk_level == 2 %}
+                            <span class="badge bg-warning text-dark">Medium</span>
+                        {% else %}
+                            <span class="badge bg-danger">High</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ area.barangay_ref.name|default:"Unassigned" }}</td>
+                    <td>
+                        <a href="{% url 'gis_mapping:edit_disaster_area' area.id %}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-edit"></i> Edit
+                        </a>
+                        <a href="{% url 'gis_mapping:delete_disaster_area' area.id %}" class="btn btn-sm btn-danger">
+                            <i class="fas fa-trash"></i> Delete
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted">No hazard areas found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Evacuation Sites Management -->
+    <div class="mt-3 mb-4">
+        <h5>Manage Evacuation Sites</h5>
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Barangay</th>
+                    <th>Capacity</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for evac in evacuation_sites %}
+                <tr>
+                    <td>{{ evac.name }}</td>
+                    <td>{{ evac.barangay.name }}</td>
+                    <td>{{ evac.capacity|default:"N/A" }}</td>
+                    <td>
+                        <a href="{% url 'gis_mapping:delete_evacuation_site' evac.id %}" class="btn btn-sm btn-danger">
+                            <i class="fas fa-trash"></i> Delete
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center text-muted">No evacuation sites found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let map;
+    let layers;
+    let hazardLayer;
+    let hazardData = [
+        {% for area in disaster_areas %}
+            {
+                id: {{ area.id }},
+                name: "{{ area.name }}",
+                type: "{{ area.get_type_display }}",
+                risk_level: {{ area.risk_level }},
+                risk_display: "{{ area.get_risk_level_display }}",
+                boundary: {{ area.boundary.json|safe }},
+                edit_url: "{% url 'gis_mapping:edit_disaster_area' area.id %}",
+                {% if can_edit_gis %}can_edit: true{% else %}can_edit: false{% endif %}
+            }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    document.addEventListener('DOMContentLoaded', function() {
+        map = L.map('main-map').setView([11.0044, 124.6075], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        layers = {
+            households: L.layerGroup().addTo(map),
+            barangay_boundaries: L.layerGroup().addTo(map),
+            infrastructure: L.layerGroup().addTo(map),
+            hazards: L.layerGroup().addTo(map),
+            evacuation: L.layerGroup().addTo(map),
+            demographics: L.layerGroup().addTo(map)
+        };
+        hazardLayer = layers.hazards;
+
+        // Add Barangay Boundaries
+        {% for brgy in barangays %}
+            {% if brgy.boundary %}
+                L.geoJSON({{ brgy.boundary.json|safe }}, {
+                    style: {
+                        color: '#343a40',
+                        weight: 2,
+                        fillOpacity: 0.1,
+                        dashArray: '5, 5'
+                    }
+                }).bindPopup("<b>Barangay {{ brgy.name }}</b><br>Boundary Area").addTo(layers.barangay_boundaries);
+            {% endif %}
+        {% endfor %}
+
+        // Demographic Data from View
+        const demoData = {{ demographics_json|safe }};
+        const demoBaseUrl = "{% url 'gis_mapping:demographic_list' %}";
+        const demoDataUrl = "{% url 'gis_mapping:demographic_data' %}";
+        const householdData = {{ households_json|safe }};
+        const householdEditUrlTemplate = "{% url 'residents:map_household' 0 %}";
+        const canViewResidentDetail = {% if user.is_authenticated and user.is_system_admin %}true{% elif user.is_authenticated and user.is_any_barangay_official %}true{% else %}false{% endif %};
+        const residentDetailUrlPrefix = '/residents/detail/';
+        let currentDemoById = {};
+        let currentSelectedRow = null;
+
+        function setDemoPaneLoading(titleText) {
+            document.getElementById('demo-pane-empty').classList.add('d-none');
+            document.getElementById('demo-pane').classList.remove('d-none');
+            document.getElementById('demo-title').textContent = titleText || 'Loading...';
+            document.getElementById('demo-count').textContent = '';
+            document.getElementById('demo-detail').classList.add('d-none');
+            document.getElementById('demo-table-body').innerHTML = `
+                <tr><td colspan="4" class="text-muted">Loading...</td></tr>
+            `;
+        }
+
+        function setDemoPaneError(message) {
+            document.getElementById('demo-pane-empty').classList.add('d-none');
+            document.getElementById('demo-pane').classList.remove('d-none');
+            document.getElementById('demo-title').textContent = 'Demographics';
+            document.getElementById('demo-count').textContent = '';
+            document.getElementById('demo-detail').classList.add('d-none');
+            document.getElementById('demo-table-body').innerHTML = `
+                <tr><td colspan="4" class="text-danger">${message}</td></tr>
+            `;
+        }
+
+        function renderDemoDetail(r) {
+            const detail = document.getElementById('demo-detail');
+            if (!detail || !r) return;
+
+            document.getElementById('demo-detail-name').textContent = r.name || '';
+
+            const ageText = r.age_range_display || r.age_range || '';
+            const brgyText = r.barangay || '';
+            const purokText = r.purok || '';
+            const metaBits = [ageText, purokText ? `Purok ${purokText}` : '', brgyText].filter(Boolean);
+            document.getElementById('demo-detail-meta').textContent = metaBits.join(' • ');
+
+            document.getElementById('demo-detail-contact').textContent = r.contact_number || 'N/A';
+            document.getElementById('demo-detail-household').textContent = r.household_number || 'N/A';
+            document.getElementById('demo-detail-employment').textContent = r.employment_status || 'N/A';
+            document.getElementById('demo-detail-student').textContent = r.is_student ? 'Yes' : 'No';
+
+            const link = document.getElementById('demo-detail-link');
+            if (canViewResidentDetail && r.id) {
+                link.href = `${residentDetailUrlPrefix}${r.id}/`;
+                link.classList.remove('d-none');
+            } else {
+                link.href = '#';
+                link.classList.add('d-none');
+            }
+
+            detail.classList.remove('d-none');
+        }
+
+        async function loadDemographics({ type, purok, barangayId, fallbackTitle }) {
+            setDemoPaneLoading(fallbackTitle);
+
+            const params = new URLSearchParams();
+            if (type) params.set('type', type);
+            if (purok) params.set('purok', purok);
+            if (barangayId) params.set('barangay_id', barangayId);
+
+            try {
+                const res = await fetch(`${demoDataUrl}?${params.toString()}`, { credentials: 'same-origin' });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const payload = await res.json();
+
+                document.getElementById('demo-title').textContent = payload.title || 'Demographics';
+                document.getElementById('demo-count').textContent = typeof payload.count === 'number' ? payload.count : '';
+
+                const residents = (payload.residents || []);
+                currentDemoById = {};
+                residents.forEach(r => { if (r && r.id) currentDemoById[String(r.id)] = r; });
+                currentSelectedRow = null;
+
+                const rows = residents.map(r => {
+                    const studentText = r.is_student ? 'Yes' : 'No';
+                    const employmentText = r.employment_status || '';
+                    const purokText = r.purok || '';
+                    const nameText = r.name || '';
+                    return `
+                        <tr data-resident-id="${r.id || ''}" style="cursor:pointer;">
+                            <td>${nameText}</td>
+                            <td>${purokText}</td>
+                            <td>${employmentText}</td>
+                            <td>${studentText}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                document.getElementById('demo-table-body').innerHTML = rows || `<tr><td colspan="4" class="text-muted">No records found.</td></tr>`;
+
+                if (residents.length) {
+                    const first = residents.find(r => r && r.id) || null;
+                    if (first) renderDemoDetail(first);
+                }
+            } catch (err) {
+                setDemoPaneError('Failed to load data. Please try again.');
+            }
+        }
+
+        document.addEventListener('click', (e) => {
+            const link = e.target.closest('.js-demo-link');
+            if (!link) return;
+            e.preventDefault();
+
+            loadDemographics({
+                type: link.dataset.type || '',
+                purok: link.dataset.purok || '',
+                barangayId: link.dataset.barangayId || '',
+                fallbackTitle: link.dataset.title || 'Demographics',
+            });
+        });
+
+        document.getElementById('demo-table-body').addEventListener('click', (e) => {
+            const row = e.target.closest('tr[data-resident-id]');
+            if (!row) return;
+
+            const id = row.getAttribute('data-resident-id') || '';
+            const resident = currentDemoById[id];
+            if (!resident) return;
+
+            if (currentSelectedRow) currentSelectedRow.classList.remove('table-primary');
+            row.classList.add('table-primary');
+            currentSelectedRow = row;
+            renderDemoDetail(resident);
+        });
+
+        demoData.forEach(item => {
+            if (item.center) {
+                const color = item.type === 'barangay' ? '#e83e8c' : '#fd7e14';
+                const markerValue = (typeof item.population === 'number' ? item.population : item.seniors);
+                const icon = L.divIcon({
+                    className: 'demo-div-icon',
+                    html: `<div title="Population: ${item.population ?? ''}" style="background-color:${color}; width:24px; height:24px; border-radius:50%; border:2px solid white; color:white; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3); cursor:pointer;">${markerValue}</div>`,
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                });
+
+                const queryBits = [];
+                if (item.type === 'purok') queryBits.push(`purok=${encodeURIComponent(item.purok || item.name.split(': ')[1])}`);
+                if (item.type === 'barangay') queryBits.push(`barangay_id=${encodeURIComponent(item.id)}`);
+                const baseQuery = queryBits.join('&');
+
+                let popupContent = `<div class="p-2">
+                    <h6 class="border-bottom pb-1 mb-2">${item.name}</h6>
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-1"><i class="fas fa-users me-2 text-secondary"></i> Population: <strong>${item.population ?? ''}</strong></li>
+                        <li class="mb-1"><i class="fas fa-blind me-2 text-info"></i> Seniors: <strong>${item.seniors}</strong> <a href="${demoBaseUrl}?type=seniors&${baseQuery}" class="ms-1 badge bg-light text-dark text-decoration-none js-demo-link" data-type="seniors" data-purok="${item.type === 'purok' ? (item.purok || '') : ''}" data-barangay-id="${item.type === 'barangay' ? item.id : ''}" data-title="Senior Citizens - ${item.name}">View</a></li>
+                        <li class="mb-1"><i class="fas fa-user-graduate me-2 text-primary"></i> Students: <strong>${item.students}</strong> <a href="${demoBaseUrl}?type=students&${baseQuery}" class="ms-1 badge bg-light text-dark text-decoration-none js-demo-link" data-type="students" data-purok="${item.type === 'purok' ? (item.purok || '') : ''}" data-barangay-id="${item.type === 'barangay' ? item.id : ''}" data-title="Students - ${item.name}">View</a></li>
+                        <li class="mb-1"><i class="fas fa-briefcase me-2 text-success"></i> Employed: <strong>${item.employed}</strong> <a href="${demoBaseUrl}?type=employed&${baseQuery}" class="ms-1 badge bg-light text-dark text-decoration-none js-demo-link" data-type="employed" data-purok="${item.type === 'purok' ? (item.purok || '') : ''}" data-barangay-id="${item.type === 'barangay' ? item.id : ''}" data-title="Employed - ${item.name}">View</a></li>
+                        <li class="mb-1"><i class="fas fa-user-slash me-2 text-danger"></i> Unemployed: <strong>${item.unemployed}</strong> <a href="${demoBaseUrl}?type=unemployed&${baseQuery}" class="ms-1 badge bg-light text-dark text-decoration-none js-demo-link" data-type="unemployed" data-purok="${item.type === 'purok' ? (item.purok || '') : ''}" data-barangay-id="${item.type === 'barangay' ? item.id : ''}" data-title="Unemployed - ${item.name}">View</a></li>
+                        <li class="mb-1"><i class="fas fa-child me-2 text-warning"></i> Minors: <strong>${item.minors}</strong> <a href="${demoBaseUrl}?type=minors&${baseQuery}" class="ms-1 badge bg-light text-dark text-decoration-none js-demo-link" data-type="minors" data-purok="${item.type === 'purok' ? (item.purok || '') : ''}" data-barangay-id="${item.type === 'barangay' ? item.id : ''}" data-title="Minors - ${item.name}">View</a></li>
+                        <li><i class="fas fa-baby me-2 text-success"></i> Infants: <strong>${item.infants}</strong> <a href="${demoBaseUrl}?type=infants&${baseQuery}" class="ms-1 badge bg-light text-dark text-decoration-none js-demo-link" data-type="infants" data-purok="${item.type === 'purok' ? (item.purok || '') : ''}" data-barangay-id="${item.type === 'barangay' ? item.id : ''}" data-title="Infants - ${item.name}">View</a></li>
+                    </ul>
+                </div>`;
+
+                L.marker(item.center, {icon: icon})
+                    .bindPopup(popupContent, {minWidth: 200})
+                    .addTo(layers.demographics);
+            }
+        });
+
+        householdData.forEach(h => {
+            if (!h || typeof h.lat !== 'number' || typeof h.lng !== 'number') return;
+            const icon = L.divIcon({
+                className: 'hh-div-icon',
+                html: `<div title="Household #${h.household_number || ''}" style="background-color:#198754; width:12px; height:12px; border-radius:50%; border:2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>`,
+                iconSize: [16, 16],
+                iconAnchor: [8, 8]
+            });
+            const editUrl = householdEditUrlTemplate.replace('/0/', `/${h.id}/`);
+            const popup = `
+                <div style="min-width: 220px;">
+                    <div class="fw-semibold mb-1">HH #${h.household_number || ''}</div>
+                    <div class="text-muted small mb-2">${h.barangay || ''}</div>
+                    <div class="small mb-2">${h.address || ''}</div>
+                    <div class="small text-muted mb-2">Members: ${typeof h.members_count === 'number' ? h.members_count : ''}</div>
+                    <div class="text-end">
+                        <a href="${editUrl}" class="btn btn-sm btn-outline-primary">Edit Pin</a>
+                    </div>
+                </div>
+            `;
+            L.marker([h.lat, h.lng], {icon}).bindPopup(popup).addTo(layers.households);
+        });
+
+        for (let i = 0; i < hazardData.length; i++) {
+            let area = hazardData[i];
+            let color = 'red';
+            if (area.risk_level === 1) color = 'green';
+            else if (area.risk_level === 2) color = 'orange';
+
+            let popupContent = `<b>Hazard: ${area.name}</b><br>Type: ${area.type}<br>Risk: ${area.risk_display}`;
+            if (area.can_edit) {
+                popupContent += `<br><a href="${area.edit_url}" class="btn btn-sm btn-primary mt-2"><i class="fas fa-edit"></i> Edit</a>`;
+            }
+
+            L.geoJSON(area.boundary, {
+                style: { color: color, fillOpacity: 0.3 }
+            }).bindPopup(popupContent).addTo(hazardLayer);
+        }
+
+        // Add Infrastructure Markers
+        {% for infra in infrastructure %}
+            {% if infra.location %}
+                var icon = L.divIcon({
+                    className: 'custom-div-icon',
+                    html: "<div style='background-color:#17a2b8; width:12px; height:12px; border-radius:50%; border:2px solid white;'></div>",
+                    iconSize: [16, 16],
+                    iconAnchor: [8, 8]
+                });
+                L.marker([{{ infra.location.y }}, {{ infra.location.x }}], {icon: icon})
+                    .bindPopup("<b>{{ infra.name }}</b><br>Type: {{ infra.get_type_display }}<br>Barangay: {{ infra.barangay_ref.name|default:'N/A' }}")
+                    .addTo(layers.infrastructure);
+            {% endif %}
+        {% endfor %}
+
+        // Add Evacuation Site Markers
+        {% for site in evacuation_sites %}
+            {% if site.location %}
+                var icon = L.divIcon({
+                    className: 'custom-div-icon',
+                    html: "<div style='background-color:#6f42c1; width:12px; height:12px; border-radius:50%; border:2px solid white;'></div>",
+                    iconSize: [16, 16],
+                    iconAnchor: [8, 8]
+                });
+                L.marker([{{ site.location.y }}, {{ site.location.x }}], {icon: icon})
+                    .bindPopup("<b>Evacuation: {{ site.name }}</b><br>Barangay: {{ site.barangay.name }}{% if site.capacity %}<br>Capacity: {{ site.capacity }}{% endif %}")
+                    .addTo(layers.evacuation);
+            {% endif %}
+        {% endfor %}
+    });
+
+    function toggleLayer(layerName) {
+        if (!map || !layers || !layers[layerName]) return;
+        if (map.hasLayer(layers[layerName])) map.removeLayer(layers[layerName]);
+        else layers[layerName].addTo(map);
+    }
+</script>
+{% endblock %}

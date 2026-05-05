@@ -1,0 +1,548 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    .barangay-welcome {
+        background: linear-gradient(135deg, #1cc88a 0%, #13855c 100%);
+        border-radius: 15px;
+        color: white;
+        padding: 2.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        position: relative;
+        overflow: hidden;
+    }
+    .barangay-welcome::after {
+        content: '\f64f';
+        font-family: 'Font Awesome 5 Free';
+        font-weight: 900;
+        position: absolute;
+        right: 30px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 8rem;
+        opacity: 0.1;
+    }
+    .stat-card {
+        border-radius: 15px;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        border: none;
+        overflow: hidden;
+    }
+    .stat-card:hover { 
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+    }
+    .card-icon-bg {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+    }
+    .bg-primary-soft { background-color: rgba(78, 115, 223, 0.1); color: #4e73df; }
+    .bg-success-soft { background-color: rgba(28, 200, 138, 0.1); color: #1cc88a; }
+    .bg-info-soft { background-color: rgba(54, 185, 204, 0.1); color: #36b9cc; }
+    .bg-warning-soft { background-color: rgba(246, 194, 62, 0.1); color: #f6c23e; }
+
+    .stat-card.primary { border-left: 5px solid #4e73df; }
+    .stat-card.success { border-left: 5px solid #1cc88a; }
+    .stat-card.warning { border-left: 5px solid #f6c23e; }
+    .stat-card.info { border-left: 5px solid #36b9cc; }
+
+    .quick-link-btn {
+        border-radius: 12px;
+        padding: 0.8rem 1.2rem;
+        font-weight: 600;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border-width: 2px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 180px;
+    }
+    .quick-link-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .table-card {
+        border-radius: 15px;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1);
+        border: none;
+    }
+    .table-card .card-header {
+        border-bottom: 1px solid #e3e6f0;
+        padding: 1.25rem;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <div class="barangay-welcome d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="fw-bold mb-1">Barangay {{ barangay.name }}</h1>
+            <p class="mb-0 opacity-75">Local Administration & Community Services Portal</p>
+        </div>
+        <div class="text-end d-none d-md-block">
+            <a href="?download=1" class="btn btn-light shadow-sm rounded-pill px-4 fw-bold">
+                <i class="fas fa-file-export me-2 text-success"></i> Export Barangay Data
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-5">
+        <div class="col-xl-3 col-md-6">
+            <div class="card stat-card primary shadow-sm h-100">
+                <div class="card-body p-4">
+                    <div class="card-icon-bg bg-primary-soft">
+                        <i class="fas fa-users fa-lg"></i>
+                    </div>
+                    <h6 class="text-muted text-uppercase small fw-bold mb-1">Total Residents</h6>
+                    <h2 class="mb-0 fw-bold text-dark">{{ total_residents }}</h2>
+                    <p class="text-muted small mt-2 mb-0">Registered community members</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card stat-card success shadow-sm h-100">
+                <div class="card-body p-4">
+                    <div class="card-icon-bg bg-success-soft">
+                        <i class="fas fa-house-user fa-lg"></i>
+                    </div>
+                    <h6 class="text-muted text-uppercase small fw-bold mb-1">Total Households</h6>
+                    <h2 class="mb-0 fw-bold text-dark">{{ total_households }}</h2>
+                    <p class="text-muted small mt-2 mb-0">Documented residential units</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card stat-card warning shadow-sm h-100">
+                <div class="card-body p-4">
+                    <div class="card-icon-bg bg-warning-soft">
+                        <i class="fas fa-user-clock fa-lg"></i>
+                    </div>
+                    <h6 class="text-muted text-uppercase small fw-bold mb-1">Pending Approvals</h6>
+                    <h2 class="mb-0 fw-bold text-dark">{{ pending_residents.count }}</h2>
+                    <p class="text-muted small mt-2 mb-0">Residents awaiting verification</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card stat-card danger shadow-sm h-100">
+                <div class="card-body p-4">
+                    <div class="card-icon-bg bg-danger-soft">
+                        <i class="fas fa-exclamation-triangle fa-lg"></i>
+                    </div>
+                    <h6 class="text-muted text-uppercase small fw-bold mb-1">Pending Reports</h6>
+                    <h2 class="mb-0 fw-bold text-dark">{{ pending_reports.count }}</h2>
+                    <p class="text-muted small mt-2 mb-0">Issues requiring attention</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-5">
+        <!-- Quick Links -->
+        <div class="col-12">
+            <h5 class="fw-bold mb-3 text-muted"><i class="fas fa-bolt me-2 text-warning"></i> Quick Actions</h5>
+            <div class="d-flex flex-wrap gap-3">
+                <a href="{% url 'residents:report_list' %}" class="btn btn-outline-danger quick-link-btn">
+                    <i class="fas fa-exclamation-triangle me-2"></i> Manage Reports
+                </a>
+                <a href="{% url 'residents:official_list' %}" class="btn btn-outline-primary quick-link-btn">
+                    <i class="fas fa-user-tie me-2"></i> Barangay Officials
+                </a>
+                <a href="{% url 'residents:service_list' %}" class="btn btn-outline-info quick-link-btn">
+                    <i class="fas fa-concierge-bell me-2"></i> Barangay Services
+                </a>
+                <a href="{% url 'residents:service_request_list' %}" class="btn btn-outline-secondary quick-link-btn">
+                    <i class="fas fa-inbox me-2"></i> Service Requests
+                </a>
+                <a href="{% url 'residents:add_resident' %}" class="btn btn-outline-success quick-link-btn">
+                    <i class="fas fa-user-plus me-2"></i> Add Resident
+                </a>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-map-marked-alt me-2"></i> Local GIS View - Barangay {{ barangay.name }}</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div id="brgyMap" style="height: 400px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <!-- Status Chart -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-dark text-white py-2 small">Incident Status Breakdown</div>
+                <div class="card-body d-flex align-items-center justify-content-center" style="height: 250px;">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <!-- Type Chart -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-dark text-white py-2 small">Incident Types</div>
+                <div class="card-body d-flex align-items-center justify-content-center" style="height: 250px;">
+                    <canvas id="typeChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <!-- ML Risk Chart -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-dark text-white py-2 small">ML Vulnerability Summary</div>
+                <div class="card-body d-flex align-items-center justify-content-center" style="height: 250px;">
+                    <canvas id="mlRiskChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card shadow-sm border-0 table-card">
+                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold"><i class="fas fa-clipboard-list me-2"></i> Activity Log</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>User</th>
+                                    <th>Action</th>
+                                    <th>Target</th>
+                                    <th>Path</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in audit_logs %}
+                                <tr>
+                                    <td>{{ log.created_at|date:"M d, Y H:i" }}</td>
+                                    <td>{{ log.actor.username|default:"Unknown" }}</td>
+                                    <td>{{ log.action }}</td>
+                                    <td>{{ log.object_type }} {{ log.object_id }}</td>
+                                    <td class="text-truncate" style="max-width: 320px;">{{ log.path }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4 text-muted">No activity yet.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Pending Approvals -->
+        <div class="col-12 mb-4">
+            <div class="card shadow-sm border-0 table-card">
+                <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold"><i class="fas fa-user-clock me-2"></i> Pending Resident Approvals</h5>
+                    <span class="badge bg-dark rounded-pill">{{ pending_residents.count }} Awaiting Verification</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Resident Name</th>
+                                    <th>Date Submitted</th>
+                                    <th>Contact</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for r in pending_residents|slice:":5" %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-sm me-3 bg-primary-soft rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                                <i class="fas fa-user text-primary small"></i>
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold text-dark">{{ r.full_name }}</div>
+                                                <div class="text-muted small">Resident ID: {{ r.resident_code|default:"Pending" }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ r.updated_at|date:"M d, Y" }}</td>
+                                    <td>{{ r.contact_number|default:"No contact" }}</td>
+                                    <td class="text-end">
+                                        <form action="{% url 'residents:verify_resident' r.pk %}" method="post" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3">
+                                                <i class="fas fa-check-circle me-1"></i> Verify Now
+                                            </button>
+                                        </form>
+                                        <form action="{% url 'residents:reject_resident' r.pk %}" method="post" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="return confirm('Reject this resident profile?')">
+                                                <i class="fas fa-times-circle me-1"></i> Reject
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-5">
+                                        <div class="text-muted">
+                                            <i class="fas fa-check-double fa-3x mb-3 opacity-25"></i>
+                                            <p class="mb-0">Great job! No pending resident approvals at the moment.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% if pending_residents.count > 5 %}
+                <div class="card-footer bg-white text-center py-2">
+                    <a href="{% url 'residents:resident_list' %}?status=PENDING_APPROVAL" class="text-decoration-none small fw-bold">View all pending residents <i class="fas fa-arrow-right ms-1"></i></a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Recent Reports -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent Reports</h5>
+                    <a href="{% url 'residents:report_list' %}" class="btn btn-sm btn-outline-light">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Resident</th>
+                                    <th>Title</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for report in pending_reports|slice:":5" %}
+                                <tr>
+                                    <td>{{ report.resident.full_name }}</td>
+                                    <td>{{ report.title|truncatechars:30 }}</td>
+                                    <td><span class="badge bg-secondary">Pending</span></td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="3" class="text-center py-4 text-muted">No pending reports.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resident List -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent Residents</h5>
+                    <a href="{% url 'residents:resident_list' %}" class="btn btn-sm btn-outline-light">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>HH #</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for r in residents|slice:":5" %}
+                                <tr>
+                                    <td>{{ r.full_name }}</td>
+                                    <td>{{ r.household.household_number }}</td>
+                                    <td>
+                                        <a href="{% url 'residents:resident_detail' r.pk %}" class="btn btn-sm btn-link">View</a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="3" class="text-center py-4 text-muted">No residents found.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // GIS Map Initialization
+    const map = L.map('brgyMap').setView([11.00, 124.60], 14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    const householdsData = {{ households_geojson|safe }};
+    const incidentsData = {{ incidents_geojson|safe }};
+    const hazardsData = {{ hazards_geojson|safe }};
+    const evacuationData = {{ evacuation_geojson|safe }};
+    const boundariesData = {{ barangay_boundaries_json|safe }};
+
+    const boundariesLayer = L.featureGroup().addTo(map);
+    boundariesData.forEach(b => {
+        if (!b.boundary) return;
+        L.geoJSON(b.boundary, {
+            style: {
+                color: '#343a40',
+                weight: 3,
+                fillOpacity: 0.05,
+                dashArray: '5, 5'
+            }
+        }).bindPopup(`<strong>Barangay ${b.name}</strong>`).addTo(boundariesLayer);
+    });
+
+    const householdsLayer = L.geoJSON(householdsData, {
+        pointToLayer: (feature, latlng) => L.circleMarker(latlng, {
+            radius: 6,
+            fillColor: "#28a745",
+            color: "#fff",
+            weight: 1,
+            opacity: 1,
+            fillOpacity: 0.8
+        }),
+        onEachFeature: (feature, layer) => {
+            layer.bindPopup(`<strong>Household: ${feature.properties.household_number}</strong><br>${feature.properties.address}`);
+        }
+    }).addTo(map);
+
+    const bounds = householdsLayer.getBounds();
+    if (bounds && bounds.isValid()) {
+        map.fitBounds(bounds, { maxZoom: 16 });
+    } else if (boundariesData.length) {
+        const b = boundariesLayer.getBounds();
+        if (b && b.isValid()) {
+            map.fitBounds(b, { maxZoom: 16 });
+        }
+    }
+
+    L.geoJSON(incidentsData, {
+        pointToLayer: (feature, latlng) => L.marker(latlng, {
+            icon: L.divIcon({
+                className: 'custom-div-icon',
+                html: `<div style="background-color:#dc3545; width:12px; height:12px; border-radius:50%; border:2px solid white;"></div>`,
+                iconSize: [12, 12],
+                iconAnchor: [6, 6]
+            })
+        }),
+        onEachFeature: (feature, layer) => {
+            layer.bindPopup(`<strong>${feature.properties.title}</strong><br>Status: ${feature.properties.status}<br>Type: ${feature.properties.report_type}`);
+        }
+    }).addTo(map);
+
+    const hazardLayer = L.geoJSON(hazardsData, {
+        style: (feature) => {
+            const rl = feature.properties.risk_level;
+            let color = '#dc3545';
+            if (rl === 1) color = '#28a745';
+            if (rl === 2) color = '#ffc107';
+            return { color, weight: 2, fillOpacity: 0.2 };
+        },
+        onEachFeature: (feature, layer) => {
+            layer.bindPopup(`<strong>Hazard: ${feature.properties.name}</strong><br>Type: ${feature.properties.type}<br>Risk: ${feature.properties.risk_level}`);
+        }
+    }).addTo(map);
+
+    const evacuationLayer = L.geoJSON(evacuationData, {
+        pointToLayer: (feature, latlng) => L.circleMarker(latlng, {
+            radius: 6,
+            fillColor: "#6f42c1",
+            color: "#fff",
+            weight: 1,
+            opacity: 1,
+            fillOpacity: 0.85
+        }),
+        onEachFeature: (feature, layer) => {
+            const cap = feature.properties.capacity ? `<br>Capacity: ${feature.properties.capacity}` : '';
+            layer.bindPopup(`<strong>Evacuation: ${feature.properties.name}</strong>${cap}`);
+        }
+    }).addTo(map);
+
+    const chartData = {{ chart_data|safe }};
+
+    // Incident Status Chart
+    new Chart(document.getElementById('statusChart'), {
+        type: 'doughnut',
+        data: {
+            labels: chartData.status_labels,
+            datasets: [{
+                data: chartData.status_counts,
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.7)',
+                    'rgba(255, 206, 86, 0.7)',
+                    'rgba(75, 192, 192, 0.7)',
+                    'rgba(54, 162, 235, 0.7)'
+                ]
+            }]
+        },
+        options: { responsive: true }
+    });
+
+    // Incident Type Chart
+    new Chart(document.getElementById('typeChart'), {
+        type: 'bar',
+        data: {
+            labels: chartData.type_labels,
+            datasets: [{
+                label: 'Report Types',
+                data: chartData.type_counts,
+                backgroundColor: 'rgba(75, 192, 192, 0.7)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+
+    // ML Vulnerability Summary
+    new Chart(document.getElementById('mlRiskChart'), {
+        type: 'doughnut',
+        data: {
+            labels: chartData.ml_risk_labels,
+            datasets: [{
+                data: chartData.ml_risk_counts,
+                backgroundColor: [
+                    'rgba(40, 167, 69, 0.75)',
+                    'rgba(255, 193, 7, 0.75)',
+                    'rgba(220, 53, 69, 0.75)'
+                ]
+            }]
+        },
+        options: { responsive: true }
+    });
+</script>
+{% endblock %}

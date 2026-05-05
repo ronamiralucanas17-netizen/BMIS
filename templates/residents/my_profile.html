@@ -1,0 +1,279 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="fas fa-user-circle me-2"></i> My Profile</h4>
+                    <a href="{% url 'residents:edit_my_profile' %}" class="btn btn-sm btn-light">
+                        <i class="fas fa-edit me-1"></i> Edit Profile
+                    </a>
+                </div>
+                <div class="card-body p-4">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    {% if resident.profile_status == 'PENDING_APPROVAL' %}
+                        <div class="alert alert-warning">
+                            Your profile is complete and pending approval by your barangay.
+                        </div>
+                    {% endif %}
+
+                    <div class="row mb-4">
+                        <div class="col-md-3 text-center">
+                            {% if resident.photo %}
+                                <img src="{{ resident.photo.url }}" alt="{{ resident.full_name }}" class="img-thumbnail rounded-circle mb-3" style="width: 150px; height: 150px; object-fit: cover;">
+                            {% else %}
+                                <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 150px; height: 150px;">
+                                    <i class="fas fa-user fa-4x text-muted"></i>
+                                </div>
+                            {% endif %}
+                            
+                            {% if resident.profile_status == 'APPROVED' %}
+                                <div class="text-success small fw-bold">
+                                    <i class="fas fa-check-circle"></i> Approved Resident
+                                </div>
+                            {% else %}
+                                <div class="text-warning small fw-bold">
+                                    <i class="fas fa-exclamation-circle"></i> Pending Verification
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-9">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h2 class="mb-1">{{ resident.full_name }}</h2>
+                                    <p class="text-primary fw-bold mb-2">Code: {{ resident.resident_code }}</p>
+                                    <p class="text-muted mb-2">
+                                        <i class="fas fa-house-user me-1"></i> 
+                                        {% if resident.household %}
+                                            HH #{{ resident.household.household_number }} - {{ resident.barangay.name }}
+                                        {% else %}
+                                            No Household Assigned
+                                        {% endif %}
+                                    </p>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-{% if resident.is_voter %}success{% else %}secondary{% endif %} d-block mb-2">
+                                        {% if resident.is_voter %}Registered Voter{% else %}Not a Registered Voter{% endif %}
+                                    </span>
+                                    <span class="badge bg-info d-block mb-2">{{ resident.get_residency_status_display|default:"Residency Not Set" }}</span>
+                                    {% if resident.profile_status == 'INCOMPLETE' %}
+                                        <span class="badge bg-danger d-block p-2"><i class="fas fa-exclamation-triangle me-1"></i> Need to fill up</span>
+                                    {% else %}
+                                        <span class="badge bg-dark d-block">{{ resident.get_profile_status_display }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h5 class="mb-3 border-bottom pb-2 text-primary"><i class="fas fa-info-circle me-2"></i> Personal Details</h5>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold text-muted small">DATE OF BIRTH</label>
+                            <p class="mb-0">{{ resident.date_of_birth|default:"Not Set" }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold text-muted small">AGE GROUP</label>
+                            <p class="mb-0">{{ resident.computed_age_range_display|default:"Not Set" }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold text-muted small">BIRTHPLACE</label>
+                            <p class="mb-0">{{ resident.birthplace|default:"Not Set" }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold text-muted small">GENDER</label>
+                            <p class="mb-0">{{ resident.get_gender_display|default:"Not Set" }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold text-muted small">CIVIL STATUS</label>
+                            <p class="mb-0">{{ resident.get_civil_status_display|default:"Not Set" }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold text-muted small">CITIZENSHIP</label>
+                            <p class="mb-0">{{ resident.citizenship|default:"Filipino" }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold text-muted small">RELIGION</label>
+                            <p class="mb-0">{{ resident.religion|default:"Not Set" }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold text-muted small">HAS CHILDREN?</label>
+                            <p class="mb-0">
+                                {% if resident.has_children %}
+                                    Yes ({{ resident.num_children }})
+                                    <div id="children_details_view" class="mt-1">
+                                        {{ resident.children_details|default:"[]"|json_script:"resident-children-details" }}
+                                        <script>
+                                            try {
+                                                const raw = JSON.parse(document.getElementById('resident-children-details').textContent);
+                                                const details = (typeof raw === 'string') ? JSON.parse(raw || '[]') : (raw || []);
+                                                if (details.length > 0) {
+                                                    document.write('<ul class="list-unstyled small mb-0">');
+                                                    details.forEach(child => {
+                                                        document.write(`<li><i class="fas fa-child me-1 text-muted"></i> ${child.name} (Age: ${child.age})</li>`);
+                                                    });
+                                                    document.write('</ul>');
+                                                }
+                                            } catch(e) {
+                                                document.write('<span class="text-muted">{{ resident.children_details }}</span>');
+                                            }
+                                        </script>
+                                    </div>
+                                {% else %}
+                                    No
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold text-muted small">FATHER'S NAME</label>
+                            <p class="mb-0">
+                                {{ resident.father_name|default:"Not Set" }}
+                                {% if resident.is_father_deceased %}<span class="badge bg-secondary ms-1">Deceased</span>{% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold text-muted small">MOTHER'S NAME</label>
+                            <p class="mb-0">
+                                {% if resident.mother_name %}
+                                    {{ resident.mother_name }}
+                                {% elif resident.mother_maiden_name %}
+                                    {{ resident.mother_maiden_name }} (Maiden)
+                                {% else %}
+                                    Not Set
+                                {% endif %}
+                                {% if resident.is_mother_deceased %}<span class="badge bg-secondary ms-1">Deceased</span>{% endif %}
+                            </p>
+                            {% if resident.mother_name and resident.mother_maiden_name %}
+                                <small class="text-muted">Maiden: {{ resident.mother_maiden_name }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    {% if resident.children_from_father.all or resident.children_from_mother.all %}
+                    <h5 class="mt-4 mb-3 border-bottom pb-2 text-primary"><i class="fas fa-child me-2"></i> Children (Registered)</h5>
+                    <div class="list-group mb-4">
+                        {% for child in resident.children_from_father.all %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ child.full_name }}
+                            <span class="badge bg-primary rounded-pill">{{ child.computed_age_range_display }}</span>
+                        </div>
+                        {% endfor %}
+                        {% for child in resident.children_from_mother.all %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ child.full_name }}
+                            <span class="badge bg-primary rounded-pill">{{ child.computed_age_range_display }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <h5 class="mt-4 mb-3 border-bottom pb-2 text-primary"><i class="fas fa-map-marker-alt me-2"></i> Address Information</h5>
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="fw-bold text-muted small">PRESENT ADDRESS</label>
+                            <p class="mb-0">{{ resident.present_address|default:"Not Set" }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold text-muted small">RESIDENCY TYPE</label>
+                            <p class="mb-0">{{ resident.get_residency_type_display }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold text-muted small">YEARS IN BARANGAY</label>
+                            <p class="mb-0">{{ resident.years_in_barangay }} year(s)</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold text-muted small">SAME AS PERMANENT?</label>
+                            <p class="mb-0">{% if resident.is_present_address_same_as_permanent %}Yes{% else %}No{% endif %}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold text-muted small">ZONE / STREET / PUROK</label>
+                            <p class="mb-0">{{ resident.zone_street_purok|default:"Not Set" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold text-muted small">BARANGAY</label>
+                            <p class="mb-0">{{ resident.barangay.name|default:"Not Set" }}</p>
+                        </div>
+                        <div class="col-md-12 mb-3">
+                            <label class="fw-bold text-muted small">PERMANENT ADDRESS (HOUSEHOLD)</label>
+                            <p class="mb-0">{{ resident.household.address|default:"Not Set" }}</p>
+                        </div>
+                    </div>
+
+                    <h5 class="mt-4 mb-3 border-bottom pb-2 text-primary"><i class="fas fa-graduation-cap me-2"></i> Education & Employment</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold text-muted small">EDUCATIONAL ATTAINMENT</label>
+                            <p class="mb-0">{{ resident.get_educational_attainment_display|default:"Not Set" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold text-muted small">OCCUPATION</label>
+                            <p class="mb-0">{{ resident.occupation|default:"Not Set" }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold text-muted small">MONTHLY INCOME</label>
+                            <p class="mb-0">{% if resident.income %}₱{{ resident.income|floatformat:2 }}{% else %}Not Set{% endif %}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold text-muted small">EMPLOYMENT STATUS</label>
+                            <p class="mb-0">{{ resident.get_employment_status_display|default:"Not Set" }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold text-muted small">STUDENT STATUS</label>
+                            <p class="mb-0">{% if resident.is_student %}Current Student{% else %}Not a Student{% endif %}</p>
+                        </div>
+                    </div>
+
+                    {% if resident.is_student %}
+                    <div class="row bg-light p-3 rounded mb-3">
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold text-muted small">ELEMENTARY</label>
+                            <p class="mb-0">{{ resident.elementary_school|default:"N/A" }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold text-muted small">HIGH SCHOOL</label>
+                            <p class="mb-0">{{ resident.high_school|default:"N/A" }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="fw-bold text-muted small">COLLEGE</label>
+                            <p class="mb-0">{{ resident.college|default:"N/A" }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="fw-bold text-muted small">EMPLOYMENT HISTORY</label>
+                            <p class="mb-0">{{ resident.employment_history|default:"None provided"|linebreaks }}</p>
+                        </div>
+                    </div>
+
+                    <h5 class="mt-4 mb-3 border-bottom pb-2 text-primary"><i class="fas fa-phone me-2"></i> Contact Details</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold text-muted small">CONTACT NUMBER</label>
+                            <p class="mb-0">{{ resident.contact_number|default:"Not Set" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold text-muted small">EMAIL ADDRESS</label>
+                            <p class="mb-0">{{ resident.email|default:"Not Set" }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer text-center text-muted small">
+                    Member since: {{ resident.created_at|date:"F d, Y" }} | Last Updated: {{ resident.updated_at|date:"F d, Y H:i" }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,395 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0"><i class="fas fa-home me-2"></i> {{ title }}</h4>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    {% if not is_resident_mapping %}
+                        <div class="row">
+                            <div class="col-md-4">{{ form.household_number|as_crispy_field }}</div>
+                            <div class="col-md-4">{{ form.barangay|as_crispy_field }}</div>
+                            <div class="col-md-4">{{ form.address|as_crispy_field }}</div>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="mt-4">
+                        <h5><i class="fas fa-map-marker-alt me-2"></i> Pin Location on Map</h5>
+                        <div class="border rounded p-3 bg-light">
+                            <div class="row">
+                                <div class="col-md-6">{{ form.latitude|as_crispy_field }}</div>
+                                <div class="col-md-6">{{ form.longitude|as_crispy_field }}</div>
+                            </div>
+                            <div id="hh-map" class="mt-3" style="height: 400px; width: 100%;"></div>
+                            <div id="hh-boundary-status" class="small mt-2"></div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-4">
+                        {% if cancel_url %}
+                            <a href="{% url cancel_url %}" class="btn btn-outline-secondary">Cancel</a>
+                        {% else %}
+                            <a href="{% url 'residents:household_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                        {% endif %}
+                        <div class="d-flex gap-2">
+                            <button type="submit" name="delete_location" value="1" class="btn btn-outline-danger" onclick="return confirm('Delete the pinned household location?');">Delete Location</button>
+                            {% if household and not is_resident_mapping %}
+                                <button type="submit" formaction="{% url 'residents:delete_household' household.pk %}" formmethod="post" class="btn btn-danger" onclick="return confirm('Delete household {{ household.household_number }}? This cannot be undone.');">Delete Household</button>
+                            {% endif %}
+                            {% if is_resident_mapping %}
+                                <button type="submit" class="btn btn-success">Save Location</button>
+                            {% else %}
+                                <button type="submit" class="btn btn-success">Save Household & Location</button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof L === 'undefined') return;
+        const mapEl = document.getElementById('hh-map');
+        if (!mapEl) return;
+        const latInput = document.getElementById('id_latitude');
+        const lngInput = document.getElementById('id_longitude');
+        const barangaySelect = document.getElementById('id_barangay');
+        const initialLat = latInput && latInput.value ? parseFloat(latInput.value) : 11.0044;
+        const initialLng = lngInput && lngInput.value ? parseFloat(lngInput.value) : 124.6075;
+
+        const map = L.map(mapEl).setView([initialLat, initialLng], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        const boundariesDataRaw = '{{ barangay_boundaries_json|default:"[]"|escapejs }}';
+        let boundariesData = [];
+        try {
+            boundariesData = JSON.parse(boundariesDataRaw);
+            if (typeof boundariesData === 'string') boundariesData = JSON.parse(boundariesData);
+        } catch (e) {
+            boundariesData = [];
+        }
+        if (!Array.isArray(boundariesData)) boundariesData = [];
+        const boundariesLayer = L.layerGroup().addTo(map);
+        const boundaryIndex = new Map();
+        const boundaryDataIndex = new Map();
+
+        const defaultStyle = { color: '#343a40', weight: 2, fillOpacity: 0.08, dashArray: '5, 5' };
+        const selectedStyle = { color: '#0d6efd', weight: 3, fillOpacity: 0.18 };
+
+        boundariesData.forEach(b => {
+            if (!b.boundary) return;
+            const layer = L.geoJSON(b.boundary, { style: defaultStyle }).bindPopup(`<strong>Barangay ${b.name}</strong>`);
+            boundaryIndex.set(String(b.id), layer);
+            boundaryDataIndex.set(String(b.id), b.boundary);
+            layer.addTo(boundariesLayer);
+        });
+
+        function highlightSelectedBoundary() {
+            const selectedId = barangaySelect ? String(barangaySelect.value || '') : '';
+            boundaryIndex.forEach((layer, id) => {
+                layer.setStyle(id === selectedId ? selectedStyle : defaultStyle);
+            });
+
+            if (selectedId && boundaryIndex.has(selectedId)) {
+                const b = boundaryIndex.get(selectedId);
+                const bounds = b.getBounds();
+                if (bounds && bounds.isValid()) {
+                    map.fitBounds(bounds, { padding: [20, 20], maxZoom: 16 });
+                }
+            }
+        }
+
+        function getActiveBoundaryGeometry() {
+            if (barangaySelect) {
+                const selectedId = String(barangaySelect.value || '');
+                if (selectedId && boundaryDataIndex.has(selectedId)) return boundaryDataIndex.get(selectedId);
+            }
+            if (boundariesData && boundariesData.length === 1 && boundariesData[0].boundary) {
+                return boundariesData[0].boundary;
+            }
+            return null;
+        }
+
+        function getActiveBoundaryLayer() {
+            if (barangaySelect) {
+                const selectedId = String(barangaySelect.value || '');
+                if (selectedId && boundaryIndex.has(selectedId)) return boundaryIndex.get(selectedId);
+            }
+            if (boundariesData && boundariesData.length === 1) {
+                const onlyId = String(boundariesData[0].id || '');
+                if (onlyId && boundaryIndex.has(onlyId)) return boundaryIndex.get(onlyId);
+            }
+            return null;
+        }
+
+        function pointInRingXY(point, ring) {
+            const x = point[0];
+            const y = point[1];
+            const eps = 0.0002;
+
+            function distPointToSegment(p, a, b) {
+                const px = p[0], py = p[1];
+                const ax = a[0], ay = a[1];
+                const bx = b[0], by = b[1];
+                const abx = bx - ax, aby = by - ay;
+                const apx = px - ax, apy = py - ay;
+                const abLen2 = abx * abx + aby * aby;
+                let t = abLen2 ? (apx * abx + apy * aby) / abLen2 : 0;
+                t = Math.max(0, Math.min(1, t));
+                const cx = ax + t * abx;
+                const cy = ay + t * aby;
+                const dx = px - cx;
+                const dy = py - cy;
+                return Math.sqrt(dx * dx + dy * dy);
+            }
+
+            let inside = false;
+            for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+                const xi = ring[i][0], yi = ring[i][1];
+                const xj = ring[j][0], yj = ring[j][1];
+                if (distPointToSegment([x, y], [xi, yi], [xj, yj]) <= eps) return true;
+                const intersect = ((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi)) / ((yj - yi) || 1e-12) + xi);
+                if (intersect) inside = !inside;
+            }
+            return inside;
+        }
+
+        function pointInPolygonXY(point, coords) {
+            if (!coords || !coords.length) return false;
+            const outer = coords[0];
+            if (!pointInRingXY(point, outer)) return false;
+            for (let k = 1; k < coords.length; k++) {
+                if (pointInRingXY(point, coords[k])) return false;
+            }
+            return true;
+        }
+
+        function isLatLng(obj) {
+            return !!obj && typeof obj.lat === 'number' && typeof obj.lng === 'number';
+        }
+
+        function normalizeLatLngs(latlngs) {
+            if (!Array.isArray(latlngs) || latlngs.length === 0) return [];
+            if (isLatLng(latlngs[0])) {
+                return [[latlngs]];
+            }
+            if (Array.isArray(latlngs[0]) && latlngs[0].length && isLatLng(latlngs[0][0])) {
+                return [latlngs];
+            }
+            if (Array.isArray(latlngs[0]) && latlngs[0].length && Array.isArray(latlngs[0][0]) && latlngs[0][0].length && isLatLng(latlngs[0][0][0])) {
+                return latlngs;
+            }
+            return [];
+        }
+
+        function getActivePolygonCoordsLngLat() {
+            const activeLayer = getActiveBoundaryLayer();
+            if (!activeLayer) return [];
+            const polygons = [];
+
+            if (typeof activeLayer.getLayers === 'function') {
+                activeLayer.getLayers().forEach(fl => {
+                    if (!fl || typeof fl.getLatLngs !== 'function') return;
+                    normalizeLatLngs(fl.getLatLngs()).forEach(poly => polygons.push(poly));
+                });
+            } else if (typeof activeLayer.getLatLngs === 'function') {
+                normalizeLatLngs(activeLayer.getLatLngs()).forEach(poly => polygons.push(poly));
+            }
+
+            return polygons.map(rings => rings.map(ring => ring.map(ll => [ll.lng, ll.lat]))).filter(coords => coords.length);
+        }
+
+        function getActivePolygonLayers() {
+            const activeLayer = getActiveBoundaryLayer();
+            if (!activeLayer) return [];
+            const polys = [];
+            const baseLayers = typeof activeLayer.getLayers === 'function' ? activeLayer.getLayers() : [activeLayer];
+            baseLayers.forEach(l => {
+                if (!l) return;
+                if (typeof l._containsPoint === 'function') {
+                    polys.push(l);
+                    return;
+                }
+                if (typeof l.getLayers === 'function') {
+                    l.getLayers().forEach(inner => {
+                        if (inner && typeof inner._containsPoint === 'function') polys.push(inner);
+                    });
+                }
+            });
+            return polys;
+        }
+
+        function findPointInsideActiveBoundary() {
+            const polygonsCoords = getActivePolygonCoordsLngLat();
+            if (!polygonsCoords.length) return null;
+            for (let i = 0; i < polygonsCoords.length; i++) {
+                const coords = polygonsCoords[i];
+                const outer = coords[0] || [];
+                if (outer.length < 3) continue;
+
+                let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+                for (let j = 0; j < outer.length; j++) {
+                    const p = outer[j];
+                    if (!p || p.length < 2) continue;
+                    const lng = p[0], lat = p[1];
+                    if (lng < minLng) minLng = lng;
+                    if (lng > maxLng) maxLng = lng;
+                    if (lat < minLat) minLat = lat;
+                    if (lat > maxLat) maxLat = lat;
+                }
+                if (!isFinite(minLng) || !isFinite(minLat) || !isFinite(maxLng) || !isFinite(maxLat)) continue;
+
+                for (let tries = 0; tries < 250; tries++) {
+                    const lng = minLng + Math.random() * (maxLng - minLng);
+                    const lat = minLat + Math.random() * (maxLat - minLat);
+                    if (pointInPolygonXY([lng, lat], coords)) return { lat, lng };
+                }
+            }
+            return null;
+        }
+
+        function isWithinBoundary(lat, lng) {
+            function checkByGeometry() {
+                const geomRaw = getActiveBoundaryGeometry();
+                if (!geomRaw) return null;
+                const geom = geomRaw.type === 'Feature' ? (geomRaw.geometry || null) : geomRaw;
+                if (!geom || !geom.type || !geom.coordinates) return null;
+                const pt = [lng, lat];
+                if (geom.type === 'Polygon') return pointInPolygonXY(pt, geom.coordinates);
+                if (geom.type === 'MultiPolygon') {
+                    for (let i = 0; i < geom.coordinates.length; i++) {
+                        if (pointInPolygonXY(pt, geom.coordinates[i])) return true;
+                    }
+                    return false;
+                }
+                return null;
+            }
+
+            function checkByLayers() {
+                const polygonLayers = getActivePolygonLayers();
+                if (polygonLayers.length && map && typeof map.latLngToLayerPoint === 'function') {
+                    const p = map.latLngToLayerPoint([lat, lng]);
+                    for (let i = 0; i < polygonLayers.length; i++) {
+                        const pl = polygonLayers[i];
+                        try {
+                            if (pl && typeof pl._containsPoint === 'function' && pl._containsPoint(p)) return true;
+                        } catch (e) {
+                        }
+                    }
+                    return false;
+                }
+
+                const polygonsCoords = getActivePolygonCoordsLngLat();
+                if (polygonsCoords.length) {
+                    const pt = [lng, lat];
+                    for (let i = 0; i < polygonsCoords.length; i++) {
+                        if (pointInPolygonXY(pt, polygonsCoords[i])) return true;
+                    }
+                    return false;
+                }
+                return null;
+            }
+
+            try {
+                const geomRes = checkByGeometry();
+                if (geomRes !== null) return geomRes;
+                const layerRes = checkByLayers();
+                if (layerRes !== null) return layerRes;
+                return true;
+            } catch (e) {
+                return true;
+            }
+        }
+
+        let marker = null;
+        let lastValidLatLng = null;
+        const statusEl = document.getElementById('hh-boundary-status');
+        function setBoundaryStatus(isInside) {
+            if (!statusEl) return;
+            const active = getActiveBoundaryGeometry() || getActiveBoundaryLayer();
+            if (!active) {
+                statusEl.textContent = '';
+                statusEl.className = 'small mt-2';
+                return;
+            }
+            if (isInside) {
+                statusEl.textContent = 'Pinned location is inside the selected barangay boundary.';
+                statusEl.className = 'small mt-2 text-success';
+            } else {
+                statusEl.textContent = 'Pinned location is outside the selected barangay boundary. Move the pin inside the highlighted area before saving.';
+                statusEl.className = 'small mt-2 text-danger';
+            }
+        }
+        const hasInitial = latInput && lngInput && latInput.value && lngInput.value;
+        if (hasInitial) {
+            marker = L.marker([initialLat, initialLng], { draggable: true }).addTo(map);
+            const initialInside = isWithinBoundary(initialLat, initialLng);
+            if (initialInside) lastValidLatLng = marker.getLatLng();
+            setBoundaryStatus(initialInside);
+        }
+
+        function setLatLng(lat, lng) {
+            const inside = isWithinBoundary(lat, lng);
+            if (!marker) {
+                marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+                marker.on('dragend', function(e) {
+                    const p = e.target.getLatLng();
+                    setLatLng(p.lat, p.lng);
+                });
+            } else {
+                marker.setLatLng([lat, lng]);
+            }
+            if (latInput) latInput.value = lat.toFixed(6);
+            if (lngInput) lngInput.value = lng.toFixed(6);
+            if (inside) lastValidLatLng = marker.getLatLng();
+            setBoundaryStatus(inside);
+            return inside;
+        }
+
+        map.on('click', function(e) {
+            setLatLng(e.latlng.lat, e.latlng.lng);
+        });
+
+        if (marker) {
+            marker.on('dragend', function(e) {
+                const p = e.target.getLatLng();
+                setLatLng(p.lat, p.lng);
+            });
+        }
+
+        if (barangaySelect) {
+            barangaySelect.addEventListener('change', function() {
+                highlightSelectedBoundary();
+                if (!marker && latInput && lngInput && !latInput.value && !lngInput.value) {
+                    const p = findPointInsideActiveBoundary();
+                    if (p) setLatLng(p.lat, p.lng);
+                }
+                if (marker) {
+                    const p = marker.getLatLng();
+                    setBoundaryStatus(isWithinBoundary(p.lat, p.lng));
+                } else {
+                    setBoundaryStatus(true);
+                }
+            });
+        }
+        highlightSelectedBoundary();
+        if (!marker && latInput && lngInput && !latInput.value && !lngInput.value) {
+            const p = findPointInsideActiveBoundary();
+            if (p) setLatLng(p.lat, p.lng);
+        }
+        if (!marker) setBoundaryStatus(true);
+    });
+</script>
+{% endblock %}

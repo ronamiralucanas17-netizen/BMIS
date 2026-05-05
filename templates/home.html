@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    .about-header {
+        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+        border-radius: 20px;
+        color: white;
+        padding: 4rem 2rem;
+        margin-bottom: 3rem;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    .feature-card {
+        border-radius: 20px;
+        border: none;
+        transition: all 0.3s ease;
+        height: 100%;
+        background: white;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    }
+    .feature-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+    }
+    .feature-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        margin: 0 auto 1.5rem;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <div class="about-header">
+        <h1 class="display-4 fw-bold mb-3">About BMIS Ormoc City</h1>
+        <p class="lead opacity-75 mx-auto" style="max-width: 800px;">
+            A next-generation Barangay Management Information System integrating Geographic Information Systems (GIS) 
+            and Machine Learning to enhance public service and disaster resilience.
+        </p>
+    </div>
+
+    <div class="row g-4 mb-5">
+        <div class="col-md-4">
+            <div class="card feature-card p-4">
+                <div class="feature-icon bg-primary-soft text-primary">
+                    <i class="fas fa-map-marked-alt"></i>
+                </div>
+                <h4 class="fw-bold text-center mb-3">GIS Integration</h4>
+                <p class="text-muted text-center">
+                    Visualizing community infrastructure, household locations, and disaster-prone areas using interactive mapping technology.
+                </p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card feature-card p-4">
+                <div class="feature-icon bg-success-soft text-success">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <h4 class="fw-bold text-center mb-3">ML Analytics</h4>
+                <p class="text-muted text-center">
+                    Utilizing Machine Learning to predict household vulnerability and identify critical service gaps within the community.
+                </p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card feature-card p-4">
+                <div class="feature-icon bg-info-soft text-info">
+                    <i class="fas fa-users-cog"></i>
+                </div>
+                <h4 class="fw-bold text-center mb-3">Smart Governance</h4>
+                <p class="text-muted text-center">
+                    Streamlining administrative processes, service requests, and resident documentation for a more efficient barangay.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card border-0 shadow-sm rounded-4 p-4 p-md-5">
+                <h3 class="fw-bold mb-4">System Overview</h3>
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <p class="text-muted lead mb-4">
+                            The Barangay Management Information System (BMIS) for Ormoc City is designed to empower local officials 
+                            with data-driven insights while providing residents with easy access to government services.
+                        </p>
+                        <ul class="list-unstyled mb-0">
+                            <li class="mb-3 d-flex align-items-center">
+                                <i class="fas fa-check-circle text-success me-3 fs-5"></i>
+                                <span>Real-time Incident Reporting & Monitoring</span>
+                            </li>
+                            <li class="mb-3 d-flex align-items-center">
+                                <i class="fas fa-check-circle text-success me-3 fs-5"></i>
+                                <span>Automated Document Issuance & Verification</span>
+                            </li>
+                            <li class="mb-3 d-flex align-items-center">
+                                <i class="fas fa-check-circle text-success me-3 fs-5"></i>
+                                <span>Disaster Risk Assessment & Evacuation Mapping</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6 text-center d-none d-md-block">
+                        <i class="fas fa-city fa-10x text-light opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

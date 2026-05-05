@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-draw-polygon me-2"></i>
+                        {% if area %}Edit{% else %}Add{% endif %} Hazard Area
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <form method="post" id="disaster-area-form">
+                        {% csrf_token %}
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.name|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.type|as_crispy_field }}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.risk_level|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {% if is_system_admin %}
+                                    {{ form.barangay_ref|as_crispy_field }}
+                                {% else %}
+                                    <label class="form-label">Barangay</label>
+                                    <input type="text" class="form-control" value="{{ barangays.0.name }}" readonly>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Draw Boundary on Map</label>
+                            <div id="boundary-map" style="height: 400px; width: 100%;"></div>
+                            <input type="hidden" name="boundary" id="boundary-input">
+                            <small class="text-muted">Click on the map to draw the boundary polygon. Double-click to finish.</small>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'gis_mapping:map_view' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i> Save Hazard Area
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+
+<script>
+    let map;
+    let drawnItems;
+    let initialBoundary = null;
+
+    {% if area and area.boundary %}
+        initialBoundary = {{ area.boundary.json|safe }};
+    {% endif %}
+
+    document.addEventListener('DOMContentLoaded', function() {
+        map = L.map('boundary-map').setView([11.0044, 124.6075], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        drawnItems = new L.FeatureGroup();
+        map.addLayer(drawnItems);
+
+        let drawControl = new L.Control.Draw({
+            draw: {
+                polygon: {
+                    allowIntersection: false,
+                    showArea: true,
+                    drawError: {
+                        color: '#e1e100',
+                        message: '<strong>Error:</strong> shape edges cannot cross!'
+                    },
+                    shapeOptions: {
+                        color: '#3388ff'
+                    }
+                },
+                polyline: false,
+                circle: false,
+                rectangle: false,
+                marker: false,
+                circlemarker: false
+            },
+            edit: {
+                featureGroup: drawnItems,
+                remove: true
+            }
+        });
+        map.addControl(drawControl);
+
+        if (initialBoundary) {
+            let layer = L.geoJSON(initialBoundary, {
+                style: { color: 'blue', fillOpacity: 0.3 }
+            });
+            layer.eachLayer(function(l) {
+                drawnItems.addLayer(l);
+            });
+            map.fitBounds(drawnItems.getBounds());
+        }
+
+        map.on(L.Draw.Event.CREATED, function(e) {
+            drawnItems.clearLayers();
+            const layer = e.layer;
+            drawnItems.addLayer(layer);
+            updateBoundaryInput();
+        });
+
+        map.on(L.Draw.Event.EDITED, function(e) {
+            updateBoundaryInput();
+        });
+
+        map.on(L.Draw.Event.DELETED, function(e) {
+            updateBoundaryInput();
+        });
+
+        function updateBoundaryInput() {
+            if (drawnItems.getLayers().length > 0) {
+                const layer = drawnItems.getLayers()[0];
+                const geoJSON = layer.toGeoJSON();
+                document.getElementById('boundary-input').value = JSON.stringify(geoJSON.geometry);
+            } else {
+                document.getElementById('boundary-input').value = '';
+            }
+        }
+
+        document.getElementById('disaster-area-form').addEventListener('submit', function(e) {
+            updateBoundaryInput();
+            if (!document.getElementById('boundary-input').value) {
+                e.preventDefault();
+                alert('Please draw a boundary on the map.');
+            }
+        });
+    });
+</script>
+{% endblock %}

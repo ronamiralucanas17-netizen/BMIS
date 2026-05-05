@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2 class="h3 mb-0 text-gray-800">Issued Documents</h2>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">Recent Documents</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Document #</th>
+                            <th>Type</th>
+                            <th>Resident</th>
+                            <th>Issued At</th>
+                            <th>Issued By</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for doc in documents %}
+                        <tr>
+                            <td>{{ doc.document_number }}</td>
+                            <td>{{ doc.get_document_type_display }}</td>
+                            <td>{{ doc.resident.full_name }}</td>
+                            <td>{{ doc.issued_at|date:"M d, Y H:i" }}</td>
+                            <td>{{ doc.issued_by.get_full_name|default:doc.issued_by.username }}</td>
+                            <td>
+                                {% if doc.is_paid %}
+                                <span class="badge bg-success">Paid</span>
+                                {% else %}
+                                <span class="badge bg-warning text-dark">Unpaid</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'barangay_services:print_document' doc.id %}" class="btn btn-sm btn-info" target="_blank">
+                                    <i class="fas fa-print"></i> Print Doc
+                                </a>
+                                {% if doc.receipt %}
+                                <a href="{% url 'barangay_services:print_receipt' doc.receipt.id %}" class="btn btn-sm btn-secondary" target="_blank">
+                                    <i class="fas fa-file-invoice"></i> Receipt
+                                </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center">No documents issued yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

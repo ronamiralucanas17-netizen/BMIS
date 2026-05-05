@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Incident Reports & Concerns</h2>
+        <div class="btn-group shadow-sm">
+            <a href="{% url 'residents:report_list' %}" class="btn btn-{% if not current_status %}primary{% else %}outline-primary{% endif %}">All</a>
+            <a href="?status=PENDING" class="btn btn-{% if current_status == 'PENDING' %}primary{% else %}outline-primary{% endif %}">Pending</a>
+            <a href="?status=IN_REVIEW" class="btn btn-{% if current_status == 'IN_REVIEW' %}primary{% else %}outline-primary{% endif %}">In Review</a>
+            <a href="?status=SCHEDULED" class="btn btn-{% if current_status == 'SCHEDULED' %}primary{% else %}outline-primary{% endif %}">Scheduled</a>
+            <a href="?status=RESOLVED" class="btn btn-{% if current_status == 'RESOLVED' %}primary{% else %}outline-primary{% endif %}">Resolved</a>
+        </div>
+    </div>
+
+    <div class="card shadow">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Resident</th>
+                            <th>Title</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Date Submitted</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for report in reports %}
+                        <tr>
+                            <td>
+                                <strong>{{ report.resident.full_name }}</strong><br>
+                                <small class="text-muted">{{ report.resident.contact_number }}</small>
+                            </td>
+                            <td>
+                                <strong>{{ report.title }}</strong>
+                                {% if report.respondent_name %}
+                                    <br><small class="text-danger">Respondent: {{ report.respondent_name }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge {% if report.report_type == 'COMPLAINT' %}bg-danger{% elif report.report_type == 'INCIDENT' %}bg-warning text-dark{% else %}bg-info text-dark{% endif %}">
+                                    {{ report.get_report_type_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge {% if report.status == 'PENDING' %}bg-secondary{% elif report.status == 'IN_REVIEW' %}bg-info{% elif report.status == 'SCHEDULED' %}bg-primary{% else %}bg-success{% endif %}">
+                                    {{ report.get_status_display }}
+                                </span>
+                                {% if report.status == 'SCHEDULED' %}
+                                    <br><small class="text-primary">{{ report.schedule_date }} @ {{ report.schedule_time }}</small>
+                                {% endif %}
+                            </td>
+                            <td>{{ report.created_at|date:"M d, Y" }}</td>
+                            <td>
+                                <a href="{% url 'residents:report_respond' report.pk %}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-reply me-1"></i> Respond
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-5 text-muted">No reports found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

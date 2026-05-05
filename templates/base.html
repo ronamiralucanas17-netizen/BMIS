@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer-when-downgrade">
+    <title>BMIS - Ormoc City</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Leaflet CSS (for GIS) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { background-color: #f8f9fa; }
+        .navbar-brand { font-weight: bold; color: #004d40 !important; }
+        .sidebar { 
+            position: fixed;
+            top: 56px; /* Height of the navbar */
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+            padding: 20px 0 0;
+            box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+            background-color: #343a40;
+            color: white;
+            overflow-y: auto;
+        }
+        .sidebar a { color: #adb5bd; text-decoration: none; display: block; padding: 10px 20px; }
+        .sidebar a:hover { background-color: #495057; color: white; }
+        .content { 
+            padding: 20px;
+            margin-top: 56px; /* Offset for the fixed-top navbar */
+        }
+        {% if user.is_authenticated %}
+        main.content {
+            margin-left: 16.666667%; /* col-md-2 width */
+        }
+        {% endif %}
+        .card { border: none; box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075); }
+        .leaflet-container { height: 420px; width: 100%; }
+        
+        /* Custom highlighting for incomplete profile fields */
+        .is-invalid-highlight {
+            border-color: #dc3545 !important;
+            background-color: #fff8f8 !important;
+            box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25) !important;
+            animation: pulse-border 2s infinite;
+        }
+        .is-invalid-highlight:focus {
+            border-color: #dc3545 !important;
+            box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.5) !important;
+        }
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); }
+            70% { box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+        }
+        .invalid-feedback-highlight {
+            display: block;
+            width: 100%;
+            margin-top: 0.25rem;
+            font-size: 0.875em;
+            color: #dc3545;
+        }
+        
+        /* Make help text red for highlighted fields */
+        .is-invalid-highlight ~ .form-text,
+        .is-invalid-highlight ~ .help-block {
+            color: #dc3545 !important;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{% url 'home' %}">
+            <i class="fas fa-map-marked-alt me-2"></i> BMIS Ormoc City
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                {% if user.is_authenticated %}
+                    <li class="nav-item">
+                        <span class="nav-link text-white">Welcome, {{ user.username }} ({{ user.get_role_display }})</span>
+                    </li>
+                    <li class="nav-item">
+                        <form action="{% url 'users:logout' %}" method="post" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="nav-link btn btn-link text-white border-0 p-0 ms-2">Logout</button>
+                        </form>
+                    </li>
+                {% else %}
+                    {# Only show public links if NOT on any staff portal or login pages #}
+                    {% if not 'analytics' in request.path and not 'admin' in request.path and not 'barangay' in request.path %}
+                        <li class="nav-item"><a class="nav-link" href="{% url 'users:login' %}">Login</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{% url 'users:barangay_register' %}">Register Barangay</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{% url 'users:resident_register' %}">Register Resident</a></li>
+                    {% endif %}
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        {% if user.is_authenticated %}
+        <nav class="col-md-2 d-none d-md-block sidebar">
+            <div>
+                <!-- Dashboard Links based on Role -->
+                {% if user.is_system_admin %}
+                    <a href="{% url 'analytics:dilg_dashboard' %}"><i class="fas fa-chart-line me-2"></i> DILG Dashboard</a>
+                    <a href="{% url 'analytics:resident_report' %}"><i class="fas fa-file-alt me-2"></i> Resident Reports</a>
+                    <a href="{% url 'gis_mapping:map_view' %}"><i class="fas fa-map-marked-alt me-2"></i> GIS Integrated Mapping</a>
+                    <a href="{% url 'users:user_list' %}"><i class="fas fa-users-cog me-2"></i> User Management</a>
+                    <a href="{% url 'analytics:vulnerability_dashboard' %}"><i class="fas fa-shield-alt me-2"></i> Hazard Analysis</a>
+                    <a href="{% url 'residents:announcement_list' %}"><i class="fas fa-bullhorn me-2"></i> Announcements</a>
+                {% elif user.is_any_barangay_official %}
+                    <a href="{% url 'analytics:barangay_dashboard' %}"><i class="fas fa-university me-2"></i> Barangay Dashboard</a>
+                    <a href="{% url 'residents:resident_list' %}">
+                        <i class="fas fa-id-card me-2"></i> Resident Records
+                        {% if user.pending_residents_count %}
+                            <span class="badge bg-danger rounded-pill">{{ user.pending_residents_count }}</span>
+                        {% endif %}
+                    </a>
+                    <a href="{% url 'residents:household_list' %}"><i class="fas fa-house-user me-2"></i> Household Mapping</a>
+                    <a href="{% url 'residents:report_list' %}">
+                        <i class="fas fa-file-invoice me-2"></i> Incident Reports
+                        {% if user.pending_reports_count %}
+                            <span class="badge bg-danger rounded-pill">{{ user.pending_reports_count }}</span>
+                        {% endif %}
+                    </a>
+                    <a href="{% url 'residents:service_request_list' %}">
+                        <i class="fas fa-inbox me-2"></i> Service Requests
+                        {% if user.pending_service_requests_count %}
+                            <span class="badge bg-danger rounded-pill">{{ user.pending_service_requests_count }}</span>
+                        {% endif %}
+                    </a>
+                    <a href="{% url 'residents:announcement_list' %}"><i class="fas fa-bullhorn me-2"></i> Announcements</a>
+                    <a href="{% url 'gis_mapping:map_view' %}"><i class="fas fa-map-marked-alt me-2"></i> GIS Integrated Mapping</a>
+                    <a href="{% url 'analytics:resident_report' %}"><i class="fas fa-file-alt me-2"></i> Resident Reports</a>
+                    
+                    {# Limited access for staff: Hide management modules #}
+                    {% if user.is_barangay_admin %}
+                        <a href="{% url 'residents:official_list' %}"><i class="fas fa-user-tie me-2"></i> Barangay Officials</a>
+                        <a href="{% url 'residents:staff_list' %}"><i class="fas fa-users me-2"></i> Staff Accounts</a>
+                        <a href="{% url 'residents:service_list' %}"><i class="fas fa-concierge-bell me-2"></i> Barangay Services</a>
+                    {% endif %}
+                {% elif user.is_resident %}
+                    <a href="{% url 'residents:resident_dashboard' %}"><i class="fas fa-home me-2"></i> My Dashboard</a>
+                    <a href="{% url 'residents:my_profile' %}"><i class="fas fa-user-circle me-2"></i> My Profile</a>
+                    <a href="{% url 'residents:available_services' %}"><i class="fas fa-concierge-bell me-2"></i> Barangay Services</a>
+                    <a href="{% url 'residents:my_service_requests' %}"><i class="fas fa-inbox me-2"></i> My Service Requests</a>
+                    <a href="{% url 'residents:my_reports' %}"><i class="fas fa-file-alt me-2"></i> My Reports</a>
+                    <a href="{% url 'residents:submit_report' %}"><i class="fas fa-exclamation-triangle me-2"></i> Report Concern</a>
+                    <a href="{% url 'residents:notification_list' %}">
+                        <i class="fas fa-bell me-2"></i> Notifications
+                        {% if user.unread_notifications_count %}
+                            <span class="badge bg-danger rounded-pill">{{ user.unread_notifications_count }}</span>
+                        {% endif %}
+                    </a>
+                {% endif %}
+                
+                <a href="{% url 'about_system' %}"><i class="fas fa-info-circle me-2"></i> About System</a>
+            </div>
+        </nav>
+        {% endif %}
+
+        <!-- Main Content -->
+        <main class="{% if user.is_authenticated %}col-md-10{% else %}col-12{% endif %} content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</div>
+
+<!-- Bootstrap JS Bundle -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,353 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<style>
+    .resident-welcome {
+        background: linear-gradient(135deg, #0d6efd 0%, #0dcaf0 100%);
+        border-radius: 20px;
+        color: white;
+        padding: 2.5rem;
+        margin-bottom: 2.5rem;
+        box-shadow: 0 10px 30px rgba(13, 110, 253, 0.15);
+        position: relative;
+        overflow: hidden;
+    }
+    .resident-welcome::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        background: url('https://www.transparenttextures.com/patterns/cubes.png');
+        opacity: 0.1;
+        pointer-events: none;
+    }
+    .dashboard-card {
+        border-radius: 20px;
+        border: none;
+        box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+        margin-bottom: 2rem;
+        transition: transform 0.3s ease;
+    }
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+    }
+    .dashboard-card .card-header {
+        background-color: #fff;
+        border-bottom: 1px solid #f1f3f9;
+        padding: 1.25rem 1.5rem;
+    }
+    .dashboard-card .card-header h5 {
+        margin-bottom: 0;
+        font-weight: 700;
+        color: #334155;
+    }
+    .announcement-item {
+        border-left: 4px solid #0d6efd;
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 0 12px 12px 0;
+        margin-bottom: 1rem;
+        transition: all 0.2s;
+    }
+    .announcement-item:hover {
+        transform: scale(1.02);
+        background: #fff;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .quick-action-card {
+        border-radius: 20px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        text-align: center;
+        padding: 1.5rem;
+        height: 100%;
+        background: white;
+        border: 1px solid #f1f3f9;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+    .quick-action-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+        border-color: #0d6efd;
+    }
+    .card-icon-bg {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+        font-size: 1.25rem;
+        transition: all 0.3s;
+    }
+    .bg-primary-soft { background-color: rgba(13, 110, 253, 0.1); color: #0d6efd; }
+    .bg-success-soft { background-color: rgba(25, 135, 84, 0.1); color: #198754; }
+    .bg-warning-soft { background-color: rgba(255, 193, 7, 0.1); color: #ffc107; }
+    .bg-info-soft { background-color: rgba(13, 202, 240, 0.1); color: #0dcaf0; }
+    .bg-danger-soft { background-color: rgba(220, 53, 69, 0.1); color: #dc3545; }
+
+    .quick-action-card:hover .card-icon-bg.bg-primary-soft { background-color: #0d6efd; color: white; }
+    .quick-action-card:hover .card-icon-bg.bg-success-soft { background-color: #198754; color: white; }
+    .quick-action-card:hover .card-icon-bg.bg-warning-soft { background-color: #ffc107; color: white; }
+    .quick-action-card:hover .card-icon-bg.bg-info-soft { background-color: #0dcaf0; color: white; }
+    .quick-action-card:hover .card-icon-bg.bg-danger-soft { background-color: #dc3545; color: white; }
+</style>
+
+<div class="container-fluid py-4">
+    <div class="resident-welcome d-flex justify-content-between align-items-center">
+        <div>
+            <h2 class="fw-bold mb-1">Welcome back, {{ resident.first_name }}!</h2>
+            <p class="mb-0 opacity-75">Barangay {{ barangay.name }} Management Portal</p>
+        </div>
+        <div class="text-end d-none d-md-block">
+            <h5 class="mb-0">{{ today|date:"l" }}</h5>
+            <p class="mb-0 opacity-75">{{ today|date:"F d, Y" }}</p>
+        </div>
+    </div>
+
+    {% if resident.profile_status == 'INCOMPLETE' %}
+    <div class="alert alert-danger shadow-sm border-0 d-flex align-items-center mb-4" style="border-radius: 15px;">
+        <div class="me-3 bg-danger text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <div class="flex-grow-1">
+            <h6 class="mb-1 fw-bold">Incomplete Profile</h6>
+            <p class="mb-0 small">Your resident profile is incomplete. Please <strong>fill up</strong> your details to access all services.</p>
+        </div>
+        <a href="{% url 'residents:edit_my_profile' %}" class="btn btn-danger btn-sm rounded-pill px-4 ms-3">
+            Fill Up Now
+        </a>
+    </div>
+    {% endif %}
+            
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Announcements -->
+            <div class="card dashboard-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5><i class="fas fa-bullhorn me-2 text-primary"></i> Recent Announcements</h5>
+                    <span class="badge bg-primary-soft text-primary rounded-pill px-3">{{ announcements.count }} New</span>
+                </div>
+                <div class="card-body">
+                    {% for ann in announcements %}
+                    <div class="announcement-item">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="fw-bold text-dark mb-0">{{ ann.title }}</h6>
+                            <span class="badge bg-white text-muted shadow-sm border">{{ ann.created_at|date:"M d" }}</span>
+                        </div>
+                        <p class="text-muted mb-0 small">{{ ann.content }}</p>
+                    </div>
+                    {% empty %}
+                    <div class="text-center py-5">
+                        <div class="card-icon-bg bg-primary-soft mx-auto mb-3">
+                            <i class="fas fa-comment-slash"></i>
+                        </div>
+                        <p class="text-muted">No recent announcements from your barangay.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Service History -->
+            <div class="card dashboard-card">
+                <div class="card-header d-flex justify-content-between align-items-center bg-white py-3">
+                    <h5 class="mb-0 text-dark fw-bold"><i class="fas fa-history me-2 text-primary"></i> Activity History</h5>
+                    <a href="{% url 'residents:download_history' %}" class="btn btn-sm btn-outline-success rounded-pill px-3">
+                        <i class="fas fa-file-download me-1"></i> Export History
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    <ul class="nav nav-tabs nav-tabs-custom border-0 px-3 mt-2" id="historyTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active fw-bold border-0 bg-transparent text-primary" id="reports-tab" data-bs-toggle="tab" data-bs-target="#reports" type="button" role="tab" style="border-bottom: 3px solid #0d6efd !important;">My Reports</button>
+                        </li>
+                        <li class="nav-item ms-2" role="presentation">
+                            <button class="nav-link fw-bold border-0 bg-transparent text-muted" id="docs-tab" data-bs-toggle="tab" data-bs-target="#docs" type="button" role="tab">My Documents</button>
+                        </li>
+                    </ul>
+                    
+                    <div class="tab-content p-4" id="historyTabsContent">
+                        <!-- Reports Tab -->
+                        <div class="tab-pane fade show active" id="reports" role="tabpanel">
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                    <thead class="bg-light">
+                                        <tr>
+                                            <th class="border-0 rounded-start">Incident Details</th>
+                                            <th class="border-0">Type</th>
+                                            <th class="border-0">Status</th>
+                                            <th class="border-0 text-end rounded-end">Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for report in reports %}
+                                        <tr>
+                                            <td>
+                                                <div class="fw-bold text-dark">{{ report.title }}</div>
+                                                <small class="text-muted">{{ report.description|truncatechars:40 }}</small>
+                                            </td>
+                                            <td><span class="badge bg-info-soft text-info">{{ report.get_report_type_display }}</span></td>
+                                            <td>
+                                                <span class="badge {% if report.status == 'PENDING' %}bg-warning-soft text-warning{% elif report.status == 'RESOLVED' %}bg-success-soft text-success{% else %}bg-primary-soft text-primary{% endif %}">
+                                                    {{ report.get_status_display }}
+                                                </span>
+                                            </td>
+                                            <td class="text-end text-muted small">{{ report.created_at|date:"M d, Y" }}</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr><td colspan="4" class="text-center text-muted py-5">
+                                            <div class="card-icon-bg bg-light mx-auto mb-3">
+                                                <i class="fas fa-folder-open"></i>
+                                            </div>
+                                            No reports filed yet.
+                                        </td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Documents Tab -->
+                        <div class="tab-pane fade" id="docs" role="tabpanel">
+                            <div class="list-group list-group-flush">
+                                {% for doc in documents %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-3 border-0 border-bottom">
+                                    <div class="d-flex align-items-center">
+                                        <div class="card-icon-bg bg-primary-soft me-3 mb-0">
+                                            <i class="fas fa-file-pdf"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0 fw-bold text-dark">{{ doc.description|default:"Uploaded Document" }}</h6>
+                                            <small class="text-muted">Uploaded on {{ doc.uploaded_at|date:"M d, Y" }}</small>
+                                        </div>
+                                    </div>
+                                    <a href="{{ doc.document.url }}" class="btn btn-sm btn-primary rounded-pill px-4" target="_blank">
+                                        <i class="fas fa-download me-1"></i> Download
+                                    </a>
+                                </div>
+                                {% empty %}
+                                <div class="text-center py-5">
+                                    <div class="card-icon-bg bg-light mx-auto mb-3">
+                                        <i class="fas fa-file-upload"></i>
+                                    </div>
+                                    <p class="text-muted">No documents available.</p>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Actions -->
+        <div class="col-lg-4">
+            <h5 class="fw-bold text-dark mb-4">Quick Actions</h5>
+            <div class="row g-4">
+                <div class="col-6">
+                    <a href="{% url 'residents:available_services' %}" class="text-decoration-none">
+                        <div class="quick-action-card">
+                            <div class="card-icon-bg bg-primary-soft">
+                                <i class="fas fa-concierge-bell"></i>
+                            </div>
+                            <h6 class="mb-0 fw-bold text-dark small">Request Service</h6>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-6">
+                    <a href="{% url 'residents:submit_report' %}" class="text-decoration-none">
+                        <div class="quick-action-card">
+                            <div class="card-icon-bg bg-danger-soft">
+                                <i class="fas fa-exclamation-circle"></i>
+                            </div>
+                            <h6 class="mb-0 fw-bold text-dark small">Report Issue</h6>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-6">
+                    <a href="{% url 'residents:my_profile' %}" class="text-decoration-none">
+                        <div class="quick-action-card">
+                            <div class="card-icon-bg bg-success-soft">
+                                <i class="fas fa-user-edit"></i>
+                            </div>
+                            <h6 class="mb-0 fw-bold text-dark small">Edit Profile</h6>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-6">
+                    <a href="{% url 'residents:notification_list' %}" class="text-decoration-none">
+                        <div class="quick-action-card position-relative">
+                            {% if user.unread_notifications_count %}
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="z-index: 1;">
+                                    {{ user.unread_notifications_count }}
+                                </span>
+                            {% endif %}
+                            <div class="card-icon-bg bg-warning-soft">
+                                <i class="fas fa-bell"></i>
+                            </div>
+                            <h6 class="mb-0 fw-bold text-dark small">Notifications</h6>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-6">
+                    <a href="{% url 'residents:map_my_household' %}" class="text-decoration-none">
+                        <div class="quick-action-card">
+                            <div class="card-icon-bg bg-info-soft">
+                                <i class="fas fa-map-marker-alt"></i>
+                            </div>
+                            <h6 class="mb-0 fw-bold text-dark small">Map Household</h6>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Profile Status -->
+            <div class="card dashboard-card mt-5 border-0">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-4">
+                        <div class="card-icon-bg bg-info-soft mb-0 me-3">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                        <h6 class="fw-bold text-dark mb-0">Profile Completion</h6>
+                    </div>
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="flex-grow-1">
+                            <div class="progress rounded-pill" style="height: 10px;">
+                                <div class="progress-bar bg-info progress-bar-striped progress-bar-animated" role="progressbar" style="width: 85%"></div>
+                            </div>
+                        </div>
+                        <span class="ms-3 fw-bold text-info">85%</span>
+                    </div>
+                    <p class="text-muted small mb-0">Your profile is almost complete! Finish it to access more services.</p>
+                </div>
+            </div>
+
+            {% if ml_vulnerability %}
+            <!-- Vulnerability Analysis -->
+            <div class="card dashboard-card mt-4 border-0 bg-primary text-white">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-white bg-opacity-25 p-2 rounded-3 me-3">
+                            <i class="fas fa-shield-alt fa-lg"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0">Household Analysis</h6>
+                    </div>
+                    <p class="small mb-3 opacity-75">Based on our ML analysis, your household's current vulnerability status is:</p>
+                    <div class="h4 fw-bold mb-0 text-center py-2 bg-white bg-opacity-25 rounded-3">
+                        {{ ml_vulnerability }}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

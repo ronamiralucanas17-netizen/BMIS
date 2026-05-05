@@ -1,0 +1,246 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Resident Profile: {{ resident.full_name }}</h2>
+        <a href="{% url 'residents:resident_list' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-2"></i> Back to List</a>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body text-center">
+                    {% if resident.photo %}
+                        <img src="{{ resident.photo.url }}" alt="{{ resident.full_name }}" class="img-thumbnail rounded-circle mb-3" style="width: 150px; height: 150px; object-fit: cover;">
+                    {% else %}
+                        <i class="fas fa-user-circle fa-7x text-muted mb-3"></i>
+                    {% endif %}
+                    <h4>{{ resident.full_name }}</h4>
+                    <span class="badge bg-primary mb-3">{{ resident.get_gender_display }}</span>
+                    
+                    <hr>
+                    
+                    <div class="mb-3">
+                        {% if resident.profile_status == 'APPROVED' %}
+                            <span class="text-success fw-bold"><i class="fas fa-check-circle"></i> Approved</span>
+                        {% elif resident.profile_status == 'PENDING_APPROVAL' %}
+                            <span class="text-warning fw-bold"><i class="fas fa-user-clock"></i> Pending Approval</span>
+                            {% if user.is_any_barangay_official %}
+                                <form action="{% url 'residents:verify_resident' resident.id %}" method="post" class="mt-2">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-success btn-sm w-100">Approve Resident</button>
+                                </form>
+                                <form action="{% url 'residents:reject_resident' resident.id %}" method="post" class="mt-2">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline-danger btn-sm w-100" onclick="return confirm('Reject this resident profile?')">Reject</button>
+                                </form>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-danger fw-bold"><i class="fas fa-exclamation-circle"></i> Incomplete Profile</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'barangay_services:issue_document' resident.id %}" class="btn btn-primary">
+                            <i class="fas fa-file-signature me-2"></i> Issue Document
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">Resident Information</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <tr>
+                            <th width="30%">Resident Code:</th>
+                            <td class="fw-bold text-primary">{{ resident.resident_code }}</td>
+                        </tr>
+                        <tr>
+                            <th>Full Name:</th>
+                            <td>{{ resident.full_name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Date of Birth:</th>
+                            <td>{{ resident.date_of_birth }} ({{ resident.computed_age_range_display }})</td>
+                        </tr>
+                        <tr>
+                            <th>Birthplace:</th>
+                            <td>{{ resident.birthplace|default:"N/A" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Gender:</th>
+                            <td>{{ resident.get_gender_display }}</td>
+                        </tr>
+                        <tr>
+                            <th>Civil Status:</th>
+                            <td>
+                                {{ resident.get_civil_status_display|default:"N/A" }}
+                                {% if resident.spouse_name %}
+                                    <div class="small text-muted mt-1"><strong>Spouse:</strong> {{ resident.spouse_name }}</div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Citizenship:</th>
+                            <td>{{ resident.citizenship }}</td>
+                        </tr>
+                        <tr>
+                            <th>Religion:</th>
+                            <td>{{ resident.religion|default:"N/A" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Has Children?</th>
+                            <td>
+                                {% if resident.has_children %}
+                                    Yes ({{ resident.num_children }})
+                                    <div id="children_details_view" class="mt-2">
+                                        {{ resident.children_details|default:"[]"|json_script:"resident-children-details" }}
+                                        <script>
+                                            try {
+                                                const raw = JSON.parse(document.getElementById('resident-children-details').textContent);
+                                                const details = (typeof raw === 'string') ? JSON.parse(raw || '[]') : (raw || []);
+                                                if (details.length > 0) {
+                                                    document.write('<ul class="list-unstyled small mb-0">');
+                                                    details.forEach(child => {
+                                                        document.write(`<li><i class="fas fa-child me-1 text-muted"></i> ${child.name} (Age: ${child.age})</li>`);
+                                                    });
+                                                    document.write('</ul>');
+                                                }
+                                            } catch(e) {
+                                                document.write('<span class="text-muted">{{ resident.children_details }}</span>');
+                                            }
+                                        </script>
+                                    </div>
+                                {% else %}
+                                    No
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Father's Name:</th>
+                            <td>
+                                {{ resident.father_name|default:"N/A" }}
+                                {% if resident.is_father_deceased %}<span class="badge bg-secondary ms-1">Deceased</span>{% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Mother's Name:</th>
+                            <td>
+                                {% if resident.mother_name %}
+                                    {{ resident.mother_name }}
+                                {% elif resident.mother_maiden_name %}
+                                    {{ resident.mother_maiden_name }} (Maiden)
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                                {% if resident.is_mother_deceased %}<span class="badge bg-secondary ms-1">Deceased</span>{% endif %}
+                                {% if resident.mother_name and resident.mother_maiden_name %}
+                                    <div class="small text-muted">Maiden Name: {{ resident.mother_maiden_name }}</div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Household #:</th>
+                            <td>{{ resident.household.household_number|default:"None" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Present Address:</th>
+                            <td>{{ resident.present_address|default:"N/A" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Residency Type:</th>
+                            <td>{{ resident.get_residency_type_display }}</td>
+                        </tr>
+                        <tr>
+                            <th>Years in Barangay:</th>
+                            <td>{{ resident.years_in_barangay }} year(s)</td>
+                        </tr>
+                        <tr>
+                            <th>Zn/St/Purok:</th>
+                            <td>{{ resident.zone_street_purok|default:"N/A" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Barangay:</th>
+                            <td>{{ resident.barangay.name|default:"N/A" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Residency Status:</th>
+                            <td>{{ resident.get_residency_status_display|default:"N/A" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Profile Status:</th>
+                            <td>
+                                {% if resident.profile_status == 'INCOMPLETE' %}
+                                    <span class="badge bg-danger p-2"><i class="fas fa-exclamation-triangle me-1"></i> Need to fill up</span>
+                                {% else %}
+                                    {{ resident.get_profile_status_display }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Educational Attainment:</th>
+                            <td>{{ resident.get_educational_attainment_display|default:"N/A" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Occupation:</th>
+                            <td>{{ resident.occupation|default:"N/A" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Monthly Income:</th>
+                            <td>{% if resident.income %}₱{{ resident.income|floatformat:2 }}{% else %}N/A{% endif %}</td>
+                        </tr>
+                        <tr>
+                            <th>Employment Status:</th>
+                            <td>{{ resident.get_employment_status_display|default:"N/A" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Student Status:</th>
+                            <td>{% if resident.is_student %}Yes{% else %}No{% endif %}</td>
+                        </tr>
+                        {% if resident.is_student %}
+                        <tr>
+                            <th>Educational History:</th>
+                            <td>
+                                <strong>Elem:</strong> {{ resident.elementary_school|default:"N/A" }}<br>
+                                <strong>High:</strong> {{ resident.high_school|default:"N/A" }}<br>
+                                <strong>College:</strong> {{ resident.college|default:"N/A" }}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <th>Employment History:</th>
+                            <td>{{ resident.employment_history|default:"N/A"|linebreaks }}</td>
+                        </tr>
+                        <tr>
+                            <th>Contact Number:</th>
+                            <td>{{ resident.contact_number|default:"N/A" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Email:</th>
+                            <td>{{ resident.email|default:"N/A" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Voter Status:</th>
+                            <td>
+                                {% if resident.is_voter %}
+                                    <span class="text-success"><i class="fas fa-check-circle me-1"></i> Registered Voter</span>
+                                {% else %}
+                                    <span class="text-danger"><i class="fas fa-times-circle me-1"></i> Not a Voter</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                    <div class="mt-4">
+                        <a href="{% url 'residents:update_resident' resident.pk %}" class="btn btn-primary"><i class="fas fa-edit me-2"></i> Edit Record</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2 class="h3 mb-0 text-gray-800">Transaction History / Audit Logs</h2>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">System Activity Logs</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover" id="logTable">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>User</th>
+                            <th>Action</th>
+                            <th>Model</th>
+                            <th>Details</th>
+                            <th>IP Address</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td class="small text-nowrap">{{ log.timestamp|date:"Y-m-d H:i:s" }}</td>
+                            <td>{{ log.user.username }}</td>
+                            <td>
+                                <span class="badge 
+                                    {% if log.action == 'CREATE' %}bg-success
+                                    {% elif log.action == 'UPDATE' %}bg-info
+                                    {% elif log.action == 'DELETE' %}bg-danger
+                                    {% elif log.action == 'ISSUE' %}bg-primary
+                                    {% elif log.action == 'PAY' %}bg-warning text-dark
+                                    {% endif %}">
+                                    {{ log.get_action_display }}
+                                </span>
+                            </td>
+                            <td>{{ log.model_name }}</td>
+                            <td class="small">{{ log.details }}</td>
+                            <td class="small">{{ log.ip_address }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center">No logs found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

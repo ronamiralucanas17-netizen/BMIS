@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm border-0 mt-4">
+            <div class="card-header bg-primary text-white p-3">
+                <h4 class="mb-0 text-center">Request Service</h4>
+            </div>
+            <div class="card-body p-4">
+                <div class="mb-3">
+                    <h5 class="mb-1">{{ service.name }}</h5>
+                    <div class="text-muted">{{ barangay.name }}</div>
+                </div>
+                <div class="mb-3">
+                    <div class="text-muted small">Requirements</div>
+                    <div>{{ service.requirements|linebreaks }}</div>
+                </div>
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                    <div class="d-flex justify-content-between mt-3">
+                        <a href="{% url 'residents:available_services' %}" class="btn btn-outline-secondary">Back</a>
+                        <button type="submit" class="btn btn-primary">Submit Request</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

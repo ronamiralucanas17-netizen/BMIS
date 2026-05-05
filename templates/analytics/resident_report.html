@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2 class="h3 mb-0 text-gray-800">Advanced Resident Report</h2>
+            <p class="text-muted">Filter and generate comprehensive reports for barangay residents.</p>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Report Filters</h6>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Report Type</label>
+                    <select name="group" class="form-select">
+                        <option value="resident" {% if group == 'resident' or filters.group == 'resident' or not filters.group %}selected{% endif %}>Residents</option>
+                        <option value="household" {% if group == 'household' or filters.group == 'household' %}selected{% endif %}>Households</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Birthplace</label>
+                    <input type="text" name="birthplace" class="form-control" value="{{ filters.birthplace }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Gender</label>
+                    <select name="gender" class="form-select">
+                        <option value="">All</option>
+                        <option value="MALE" {% if filters.gender == 'MALE' %}selected{% endif %}>Male</option>
+                        <option value="FEMALE" {% if filters.gender == 'FEMALE' %}selected{% endif %}>Female</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Civil Status</label>
+                    <select name="civil_status" class="form-select">
+                        <option value="">All</option>
+                        <option value="SINGLE" {% if filters.civil_status == 'SINGLE' %}selected{% endif %}>Single</option>
+                        <option value="MARRIED" {% if filters.civil_status == 'MARRIED' %}selected{% endif %}>Married</option>
+                        <option value="WIDOWED" {% if filters.civil_status == 'WIDOWED' %}selected{% endif %}>Widowed</option>
+                        <option value="DIVORCED" {% if filters.civil_status == 'DIVORCED' %}selected{% endif %}>Divorced</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Purok/Zone</label>
+                    <input type="text" name="purok" class="form-control" value="{{ filters.purok }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Special Category</label>
+                    <select name="category" class="form-select">
+                        <option value="">All</option>
+                        <option value="MINOR" {% if filters.category == 'MINOR' %}selected{% endif %}>Minor (Under 18)</option>
+                        <option value="SENIOR" {% if filters.category == 'SENIOR' %}selected{% endif %}>Senior Citizen (60+)</option>
+                        <option value="UNEMPLOYED" {% if filters.category == 'UNEMPLOYED' %}selected{% endif %}>Unemployed</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Age Range</label>
+                    <select name="age_range" class="form-select">
+                        <option value="">All</option>
+                        <option value="INFANT" {% if filters.age_range == 'INFANT' %}selected{% endif %}>Infant (0-2)</option>
+                        <option value="MINOR" {% if filters.age_range == 'MINOR' %}selected{% endif %}>Minor (3-17)</option>
+                        <option value="ADULT" {% if filters.age_range == 'ADULT' %}selected{% endif %}>Adult (18-59)</option>
+                        <option value="SENIOR" {% if filters.age_range == 'SENIOR' %}selected{% endif %}>Senior (60+)</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Employment Status</label>
+                    <select name="employment_status" class="form-select">
+                        <option value="">All</option>
+                        <option value="EMPLOYED" {% if filters.employment_status == 'EMPLOYED' %}selected{% endif %}>Employed</option>
+                        <option value="UNEMPLOYED" {% if filters.employment_status == 'UNEMPLOYED' %}selected{% endif %}>Unemployed</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Is Registered Voter?</label>
+                    <select name="is_voter" class="form-select">
+                        <option value="">All</option>
+                        <option value="true" {% if filters.is_voter == 'true' %}selected{% endif %}>Yes</option>
+                        <option value="false" {% if filters.is_voter == 'false' %}selected{% endif %}>No</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary flex-grow-1">Apply Filters</button>
+                    <button type="submit" name="export" value="true" class="btn btn-success flex-grow-1">Export CSV</button>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <a href="{% url 'analytics:resident_report' %}" class="btn btn-secondary w-100">Reset</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            {% if group == 'household' %}
+                <h6 class="m-0 font-weight-bold text-primary">Household List ({{ households|length }})</h6>
+            {% else %}
+                <h6 class="m-0 font-weight-bold text-primary">Resident List ({{ residents|length }})</h6>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                {% if group == 'household' %}
+                    <table class="table table-bordered table-striped" id="reportTable">
+                        <thead>
+                            <tr>
+                                <th>Household #</th>
+                                <th>Barangay</th>
+                                <th>Address</th>
+                                <th>Residents (Same Household)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for hh in households %}
+                            <tr>
+                                <td>{{ hh.household_number }}</td>
+                                <td>{{ hh.barangay.name }}</td>
+                                <td>{{ hh.address }}</td>
+                                <td>
+                                    {% for m in hh.members.all %}
+                                        {{ m.full_name }}{% if not forloop.last %}, {% endif %}
+                                    {% empty %}
+                                        <span class="text-muted">No residents linked</span>
+                                    {% endfor %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center">No households match the selected filters.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <table class="table table-bordered table-striped" id="reportTable">
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Full Name</th>
+                                <th>Gender</th>
+                                <th>Age Range</th>
+                                <th>Purok</th>
+                                <th>Employment</th>
+                                <th>Voter</th>
+                                <th>Profile Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in residents %}
+                            <tr>
+                                <td>{{ r.resident_code }}</td>
+                                <td>{{ r.full_name }}</td>
+                                <td>{{ r.gender }}</td>
+                                <td>{{ r.computed_age_range_display }}</td>
+                                <td>{{ r.zone_street_purok }}</td>
+                                <td>{{ r.get_employment_status_display }}</td>
+                                <td>
+                                    {% if r.is_voter %}
+                                    <span class="text-success"><i class="fas fa-check-circle"></i> Yes</span>
+                                    {% else %}
+                                    <span class="text-danger"><i class="fas fa-times-circle"></i> No</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge {% if r.profile_status == 'COMPLETE' %}bg-success{% else %}bg-warning{% endif %}">
+                                        {{ r.profile_status }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center">No residents match the selected filters.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

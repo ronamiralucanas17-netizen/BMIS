@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm border-0 mt-5">
+            <div class="card-header bg-primary text-white p-3">
+                <h4 class="mb-0 text-center"><i class="fas fa-user-tie me-2"></i> {{ title }}</h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form.non_field_errors }}
+                    {{ form.name }}
+
+                    <div class="mb-3">
+                        <label for="resident_search" class="form-label">{{ form.resident.label }}</label>
+                        <input id="resident_search" type="search" class="form-control" placeholder="Search resident name..." list="resident_search_list" autocomplete="off">
+                        <datalist id="resident_search_list"></datalist>
+                        <div class="d-none">
+                            {{ form.resident }}
+                        </div>
+                        <div id="resident_search_error" class="invalid-feedback">
+                            Please select a resident from your barangay.
+                        </div>
+                        {% if form.resident.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.resident.errors|striptags }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    {{ form.position|as_crispy_field }}
+                    <div class="row">
+                        <div class="col-md-6">{{ form.term_start|as_crispy_field }}</div>
+                        <div class="col-md-6">{{ form.term_end|as_crispy_field }}</div>
+                    </div>
+                    {{ form.is_active|as_crispy_field }}
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'residents:official_list' %}" class="btn btn-secondary mt-3">Cancel</a>
+                        <button type="submit" class="btn btn-primary mt-3">Save Official</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const formEl = document.querySelector('form');
+        const select = document.getElementById('id_resident');
+        const input = document.getElementById('resident_search');
+        const list = document.getElementById('resident_search_list');
+        const nameHidden = document.getElementById('id_name');
+        if (!select || !input || !list) return;
+
+        const options = Array.from(select.options)
+            .filter(o => o.value)
+            .map(o => ({ id: o.value, text: o.text }));
+
+        list.innerHTML = '';
+        for (const o of options) {
+            const opt = document.createElement('option');
+            opt.value = `${o.id} - ${o.text}`;
+            list.appendChild(opt);
+        }
+
+        function setInputFromSelect() {
+            const selected = options.find(o => o.id === select.value);
+            if (selected) {
+                input.value = `${selected.id} - ${selected.text}`;
+                if (nameHidden) nameHidden.value = selected.text;
+                return;
+            }
+            if (nameHidden && nameHidden.value) {
+                input.value = nameHidden.value;
+            }
+        }
+
+        function setSelectFromInput() {
+            const raw = (input.value || '').trim();
+            if (!raw) {
+                select.value = '';
+                return;
+            }
+
+            const m = raw.match(/^(\d+)\s*-\s*(.*)$/);
+            if (m) {
+                const id = m[1];
+                if (options.some(o => o.id === id)) {
+                    select.value = id;
+                    const selected = options.find(o => o.id === id);
+                    if (selected && nameHidden) nameHidden.value = selected.text;
+                    return;
+                }
+            }
+
+            const normalized = raw.toLowerCase();
+            const exact = options.find(o => o.text.toLowerCase() === normalized);
+            select.value = exact ? exact.id : '';
+            if (exact && nameHidden) nameHidden.value = exact.text;
+        }
+
+        input.addEventListener('change', setSelectFromInput);
+        input.addEventListener('blur', setSelectFromInput);
+        input.addEventListener('input', function () {
+            input.classList.remove('is-invalid');
+            const msg = document.getElementById('resident_search_error');
+            if (msg) msg.classList.remove('d-block');
+        });
+
+        if (formEl) {
+            formEl.addEventListener('submit', function (e) {
+                setSelectFromInput();
+                if (!select.value) {
+                    e.preventDefault();
+                    input.classList.add('is-invalid');
+                    const msg = document.getElementById('resident_search_error');
+                    if (msg) msg.classList.add('d-block');
+                    input.focus();
+                }
+            });
+        }
+        setInputFromSelect();
+    });
+</script>
+{% endblock %}

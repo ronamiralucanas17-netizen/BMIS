@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>My Submitted Reports</h2>
+        <a href="{% url 'residents:submit_report' %}" class="btn btn-primary shadow-sm">
+            <i class="fas fa-plus me-1"></i> Submit New Report
+        </a>
+    </div>
+
+    <div class="card shadow border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>Title & Description</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Date Submitted</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for report in reports %}
+                        <tr>
+                            <td>
+                                <strong>{{ report.title }}</strong><br>
+                                <small class="text-muted">{{ report.description|truncatechars:50 }}</small>
+                                {% if report.respondent_name %}
+                                    <br><small class="text-danger">Respondent: {{ report.respondent_name }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge {% if report.report_type == 'COMPLAINT' %}bg-danger{% elif report.report_type == 'INCIDENT' %}bg-warning text-dark{% else %}bg-info text-dark{% endif %}">
+                                    {{ report.get_report_type_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge {% if report.status == 'PENDING' %}bg-secondary{% elif report.status == 'IN_REVIEW' %}bg-info{% elif report.status == 'SCHEDULED' %}bg-primary{% else %}bg-success{% endif %}">
+                                    {{ report.get_status_display }}
+                                </span>
+                                {% if report.status == 'SCHEDULED' %}
+                                    <br><small class="text-primary"><i class="fas fa-calendar-alt me-1"></i>{{ report.schedule_date }} @ {{ report.schedule_time }}</small>
+                                    <br><small class="text-primary"><i class="fas fa-map-marker-alt me-1"></i>{{ report.location }}</small>
+                                {% endif %}
+                            </td>
+                            <td>{{ report.created_at|date:"M d, Y" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center py-5 text-muted">
+                                <i class="fas fa-clipboard-list fa-3x mb-3 d-block opacity-25"></i>
+                                You haven't submitted any reports yet.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

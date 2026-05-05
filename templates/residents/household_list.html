@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Household Mapping</h2>
+        <a href="{% url 'residents:add_household' %}" class="btn btn-success"><i class="fas fa-plus me-2"></i> Map New Household</a>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0"><i class="fas fa-map me-2"></i> Geographic Visualization (Ormoc City)</h5>
+        </div>
+        <div class="card-body p-0">
+            <div id="map" style="height: 500px; width: 100%;"></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>HH #</th>
+                            <th>Barangay</th>
+                            <th>Address</th>
+                            <th>Location (Lat, Lng)</th>
+                            <th>Members</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for h in households %}
+                        <tr>
+                            <td>{{ h.household_number }}</td>
+                            <td>{{ h.barangay }}</td>
+                            <td>{{ h.address }}</td>
+                            <td>
+                                {% if h.location %}
+                                    <span class="text-muted">{{ h.location.y|floatformat:4 }}, {{ h.location.x|floatformat:4 }}</span>
+                                {% else %}
+                                    <span class="text-danger">Not Mapped</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ h.members.count }}</td>
+                            <td>
+                                <a href="{% url 'residents:map_household' h.pk %}" class="btn btn-sm btn-{% if h.location %}outline-primary{% else %}warning{% endif %}">
+                                    <i class="fas fa-map-marker-alt"></i> {% if h.location %}Edit{% else %}Map{% endif %}
+                                </a>
+                                <a href="{% url 'residents:add_resident' %}?household={{ h.pk }}" class="btn btn-sm btn-outline-success"><i class="fas fa-plus"></i> Member</a>
+                                {% if h.members.count == 0 %}
+                                    <form method="post" action="{% url 'residents:delete_household' h.pk %}" class="d-inline" onsubmit="return confirm('Delete household {{ h.household_number }}? This cannot be undone.');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i> Delete</button>
+                                    </form>
+                                {% else %}
+                                    <button type="button" class="btn btn-sm btn-outline-danger" disabled title="Cannot delete: household has residents"><i class="fas fa-trash"></i> Delete</button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center">No households mapped yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize map centered on Ormoc City
+        var map = L.map('map').setView([11.0044, 124.6075], 13);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        const boundariesData = {{ barangay_boundaries_json|safe }};
+        const boundariesLayer = L.layerGroup().addTo(map);
+        boundariesData.forEach(b => {
+            if (!b.boundary) return;
+            L.geoJSON(b.boundary, {
+                style: {
+                    color: '#343a40',
+                    weight: 2,
+                    fillOpacity: 0.05,
+                    dashArray: '5, 5'
+                }
+            }).bindPopup(`<strong>Barangay ${b.name}</strong>`).addTo(boundariesLayer);
+        });
+
+        // Add markers for households
+        {% for h in households %}
+            {% if h.location %}
+                var marker = L.marker([{{ h.location.y }}, {{ h.location.x }}]).addTo(map);
+                var membersList = "<ul>{% for member in h.members.all %}<li>{{ member.full_name }}</li>{% empty %}<li>No members listed</li>{% endfor %}</ul>";
+                marker.bindPopup(`
+                    <div style="min-width: 200px;">
+                        <h6 class="mb-1">HH #{{ h.household_number }}</h6>
+                        <p class="small text-muted mb-2"><i class="fas fa-map-marker-alt me-1"></i> {{ h.address }}</p>
+                        <hr class="my-2">
+                        <p class="small fw-bold mb-1">Household Members:</p>
+                        ${membersList}
+                        <div class="mt-2 text-end">
+                            <a href="{% url 'residents:map_household' h.pk %}" class="btn btn-sm btn-primary">Edit Location</a>
+                        </div>
+                    </div>
+                `);
+            {% endif %}
+        {% endfor %}
+    });
+</script>
+{% endblock %}

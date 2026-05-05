@@ -1,0 +1,509 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    .dilg-welcome {
+        background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+        border-radius: 15px;
+        color: white;
+        padding: 2.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        position: relative;
+        overflow: hidden;
+    }
+    .dilg-welcome::after {
+        content: '\f19c';
+        font-family: 'Font Awesome 5 Free';
+        font-weight: 900;
+        position: absolute;
+        right: 30px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 8rem;
+        opacity: 0.1;
+    }
+    .dashboard-card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        border-radius: 15px;
+        overflow: hidden;
+    }
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.15) !important;
+    }
+    .card-icon-bg {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+    }
+    .bg-primary-soft { background-color: rgba(78, 115, 223, 0.1); color: #4e73df; }
+    .bg-success-soft { background-color: rgba(28, 200, 138, 0.1); color: #1cc88a; }
+    .bg-info-soft { background-color: rgba(54, 185, 204, 0.1); color: #36b9cc; }
+    .bg-warning-soft { background-color: rgba(246, 194, 62, 0.1); color: #f6c23e; }
+
+    .stats-card {
+        border-left: 0.25rem solid transparent;
+    }
+    .stats-card.primary { border-left-color: #4e73df; }
+    .stats-card.success { border-left-color: #1cc88a; }
+    .stats-card.info { border-left-color: #36b9cc; }
+    .stats-card.warning { border-left-color: #f6c23e; }
+    
+    .table-card {
+        border-radius: 15px;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        border: none;
+    }
+    .table-card .card-header {
+        background-color: #fff;
+        border-bottom: 1px solid #e3e6f0;
+        padding: 1.25rem;
+    }
+    
+    .btn-action {
+        border-radius: 8px;
+        font-weight: 600;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s;
+    }
+    .chart-container {
+        position: relative;
+        height: 250px;
+        width: 100%;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <div class="dilg-welcome d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="fw-bold mb-1">DILG Super Admin</h1>
+            <p class="mb-0 opacity-75">City-wide Management & Analytics Portal</p>
+        </div>
+        <div class="text-end d-none d-md-block">
+            <a href="?download=1" class="btn btn-light shadow-sm rounded-pill px-4 fw-bold">
+                <i class="fas fa-file-download me-2 text-primary"></i> Export System Data
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Total Residents -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card dashboard-card stats-card primary border-0 shadow-sm h-100">
+                <div class="card-body p-4">
+                    <div class="card-icon-bg bg-primary-soft">
+                        <i class="fas fa-users fa-lg"></i>
+                    </div>
+                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1 small">Total Population</div>
+                    <div class="h2 mb-0 font-weight-bold text-dark">{{ total_residents }}</div>
+                    <p class="text-muted small mt-2 mb-0">Registered across all barangays</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Households -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card dashboard-card stats-card success border-0 shadow-sm h-100">
+                <div class="card-body p-4">
+                    <div class="card-icon-bg bg-success-soft">
+                        <i class="fas fa-house-user fa-lg"></i>
+                    </div>
+                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1 small">Households</div>
+                    <div class="h2 mb-0 font-weight-bold text-dark">{{ total_households }}</div>
+                    <p class="text-muted small mt-2 mb-0">Documented residential units</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Registered Barangays -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card dashboard-card stats-card info border-0 shadow-sm h-100">
+                <div class="card-body p-4">
+                    <div class="card-icon-bg bg-info-soft">
+                        <i class="fas fa-building fa-lg"></i>
+                    </div>
+                    <div class="text-xs font-weight-bold text-info text-uppercase mb-1 small">Active Barangays</div>
+                    <div class="h2 mb-0 font-weight-bold text-dark">{{ total_barangays }}</div>
+                    <p class="text-muted small mt-2 mb-0">Fully integrated jurisdictions</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pending Approvals -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card dashboard-card stats-card warning border-0 shadow-sm h-100">
+                <div class="card-body p-4">
+                    <div class="card-icon-bg bg-warning-soft">
+                        <i class="fas fa-clock fa-lg"></i>
+                    </div>
+                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1 small">Pending Approvals</div>
+                    <div class="h2 mb-0 font-weight-bold text-dark">{{ pending_barangays.count }}</div>
+                    <p class="text-muted small mt-2 mb-0">Awaiting administrative review</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="card table-card border-0">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 text-primary font-weight-bold">Barangay Management</h5>
+                    <form method="GET" class="d-flex gap-2">
+                        <select name="active_status" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">All Status</option>
+                            <option value="active" {% if active_status == 'active' %}selected{% endif %}>Active</option>
+                            <option value="inactive" {% if active_status == 'inactive' %}selected{% endif %}>Inactive</option>
+                        </select>
+                        {% if active_status %}
+                            <a href="{% url 'analytics:dilg_dashboard' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-times"></i></a>
+                        {% endif %}
+                    </form>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="border-0 px-4">Barangay Name</th>
+                                    <th class="border-0">Captain Name</th>
+                                    <th class="border-0 text-center">Status</th>
+                                    <th class="border-0 text-center">Active</th>
+                                    <th class="border-0 text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for brgy in all_barangays %}
+                                <tr>
+                                    <td class="px-4 fw-bold text-dark">{{ brgy.name }}</td>
+                                    <td>{{ brgy.captain_name }}</td>
+                                    <td class="text-center">
+                                        {% if brgy.is_approved %}
+                                            <span class="badge bg-success">Approved</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if brgy.is_active %}
+                                            <span class="badge bg-primary">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="btn-group">
+                                            <a href="{% url 'analytics:edit_barangay' brgy.pk %}" class="btn btn-outline-primary btn-sm">
+                                                <i class="fas fa-edit"></i> Edit
+                                            </a>
+                                            {% if not brgy.is_approved %}
+                                                <a href="{% url 'analytics:approve_barangay' brgy.pk %}" class="btn btn-success btn-sm ms-1">Approve</a>
+                                                <a href="{% url 'analytics:reject_barangay' brgy.pk %}" class="btn btn-danger btn-sm ms-1" onclick="return confirm('Are you sure you want to reject and delete this barangay request?')">Reject</a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-map-marked-alt me-2"></i> System-wide GIS Overview</h5>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-light" onclick="toggleLayer('households')">Toggle Households</button>
+                        <button class="btn btn-light" onclick="toggleLayer('boundaries')">Toggle Boundaries</button>
+                        <button class="btn btn-light" onclick="toggleLayer('incidents')">Toggle Incidents</button>
+                        <button class="btn btn-light" onclick="toggleLayer('hazards')">Toggle Hazards</button>
+                        <button class="btn btn-light" onclick="toggleLayer('evacuation')">Toggle Evacuation</button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div id="mainMap" style="height: 500px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-dark text-white py-2 small">Barangay Distribution (Residents)</div>
+                <div class="card-body d-flex align-items-center justify-content-center" style="height: 200px;">
+                    <canvas id="barangayChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-dark text-white py-2 small">Incident Status</div>
+                <div class="card-body d-flex align-items-center justify-content-center" style="height: 200px;">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-dark text-white py-2 small">Age Distribution</div>
+                <div class="card-body d-flex align-items-center justify-content-center" style="height: 200px;">
+                    <canvas id="ageChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-dark text-white py-2 small">ML Vulnerability Summary</div>
+                <div class="card-body d-flex align-items-center justify-content-center" style="height: 200px;">
+                    <canvas id="mlRiskChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-dark text-white">Barangay Distribution</div>
+                <div class="card-body">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Barangay</th>
+                                <th>Resident Count</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stat in barangay_stats %}
+                            <tr>
+                                <td>{{ stat.name }}</td>
+                                <td>{{ stat.resident_count }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="2" class="text-center">No approved barangays yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-dark text-white">Recent Resident Registrations</div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Barangay</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in recent_residents %}
+                            <tr>
+                                <td>{{ r.full_name }}</td>
+                                <td>{{ r.household.barangay }}</td>
+                                <td>{{ r.created_at|date:"M d, Y" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // GIS Map Initialization
+    const map = L.map('mainMap').setView([11.00, 124.60], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    const householdsData = {{ households_geojson|safe }};
+    const incidentsData = {{ incidents_geojson|safe }};
+    const hazardsData = {{ hazards_geojson|safe }};
+    const evacuationData = {{ evacuation_geojson|safe }};
+    const boundariesData = {{ barangay_boundaries_json|safe }};
+
+    let householdLayer = L.geoJSON(householdsData, {
+        pointToLayer: (feature, latlng) => L.circleMarker(latlng, {
+            radius: 6,
+            fillColor: "#28a745",
+            color: "#fff",
+            weight: 1,
+            opacity: 1,
+            fillOpacity: 0.8
+        }),
+        onEachFeature: (feature, layer) => {
+            layer.bindPopup(`<strong>Household: ${feature.properties.household_number}</strong><br>${feature.properties.address}`);
+        }
+    }).addTo(map);
+
+    let incidentLayer = L.geoJSON(incidentsData, {
+        pointToLayer: (feature, latlng) => L.marker(latlng, {
+            icon: L.divIcon({
+                className: 'custom-div-icon',
+                html: `<div style="background-color:#dc3545; width:12px; height:12px; border-radius:50%; border:2px solid white;"></div>`,
+                iconSize: [12, 12],
+                iconAnchor: [6, 6]
+            })
+        }),
+        onEachFeature: (feature, layer) => {
+            layer.bindPopup(`<strong>${feature.properties.title}</strong><br>Status: ${feature.properties.status}<br>Type: ${feature.properties.report_type}`);
+        }
+    }).addTo(map);
+
+    let hazardLayer = L.geoJSON(hazardsData, {
+        style: (feature) => {
+            const rl = feature.properties.risk_level;
+            let color = '#dc3545';
+            if (rl === 1) color = '#28a745';
+            if (rl === 2) color = '#ffc107';
+            return { color, weight: 2, fillOpacity: 0.2 };
+        },
+        onEachFeature: (feature, layer) => {
+            layer.bindPopup(`<strong>Hazard: ${feature.properties.name}</strong><br>Type: ${feature.properties.type}<br>Risk: ${feature.properties.risk_level}`);
+        }
+    }).addTo(map);
+
+    let evacuationLayer = L.geoJSON(evacuationData, {
+        pointToLayer: (feature, latlng) => L.circleMarker(latlng, {
+            radius: 6,
+            fillColor: "#6f42c1",
+            color: "#fff",
+            weight: 1,
+            opacity: 1,
+            fillOpacity: 0.85
+        }),
+        onEachFeature: (feature, layer) => {
+            const cap = feature.properties.capacity ? `<br>Capacity: ${feature.properties.capacity}` : '';
+            layer.bindPopup(`<strong>Evacuation: ${feature.properties.name}</strong>${cap}`);
+        }
+    }).addTo(map);
+
+    let boundariesLayer = L.layerGroup().addTo(map);
+    boundariesData.forEach(b => {
+        if (!b.boundary) return;
+        L.geoJSON(b.boundary, {
+            style: {
+                color: '#343a40',
+                weight: 2,
+                fillOpacity: 0.05,
+                dashArray: '5, 5'
+            }
+        }).bindPopup(`<strong>Barangay ${b.name}</strong>`).addTo(boundariesLayer);
+    });
+
+    function toggleLayer(type) {
+        if (type === 'households') {
+            if (map.hasLayer(householdLayer)) map.removeLayer(householdLayer);
+            else householdLayer.addTo(map);
+        } else if (type === 'boundaries') {
+            if (map.hasLayer(boundariesLayer)) map.removeLayer(boundariesLayer);
+            else boundariesLayer.addTo(map);
+        } else if (type === 'incidents') {
+            if (map.hasLayer(incidentLayer)) map.removeLayer(incidentLayer);
+            else incidentLayer.addTo(map);
+        } else if (type === 'hazards') {
+            if (map.hasLayer(hazardLayer)) map.removeLayer(hazardLayer);
+            else hazardLayer.addTo(map);
+        } else if (type === 'evacuation') {
+            if (map.hasLayer(evacuationLayer)) map.removeLayer(evacuationLayer);
+            else evacuationLayer.addTo(map);
+        }
+    }
+
+    const chartData = {{ chart_data|safe }};
+
+    // Barangay Residents Chart
+    new Chart(document.getElementById('barangayChart'), {
+        type: 'bar',
+        data: {
+            labels: chartData.barangay_labels,
+            datasets: [{
+                label: 'Residents per Barangay',
+                data: chartData.barangay_residents,
+                backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+
+    // Report Status Chart
+    new Chart(document.getElementById('statusChart'), {
+        type: 'doughnut',
+        data: {
+            labels: chartData.report_status_labels,
+            datasets: [{
+                data: chartData.report_status_counts,
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.7)',
+                    'rgba(255, 206, 86, 0.7)',
+                    'rgba(75, 192, 192, 0.7)',
+                    'rgba(54, 162, 235, 0.7)'
+                ]
+            }]
+        },
+        options: { responsive: true }
+    });
+
+    // Age Distribution Chart
+    new Chart(document.getElementById('ageChart'), {
+        type: 'pie',
+        data: {
+            labels: chartData.age_labels,
+            datasets: [{
+                data: chartData.age_counts,
+                backgroundColor: [
+                    'rgba(153, 102, 255, 0.7)',
+                    'rgba(255, 159, 64, 0.7)',
+                    'rgba(255, 99, 132, 0.7)',
+                    'rgba(75, 192, 192, 0.7)'
+                ]
+            }]
+        },
+        options: { responsive: true }
+    });
+
+    // ML Vulnerability Summary
+    new Chart(document.getElementById('mlRiskChart'), {
+        type: 'doughnut',
+        data: {
+            labels: chartData.ml_risk_labels,
+            datasets: [{
+                data: chartData.ml_risk_counts,
+                backgroundColor: [
+                    'rgba(40, 167, 69, 0.75)',
+                    'rgba(255, 193, 7, 0.75)',
+                    'rgba(220, 53, 69, 0.75)'
+                ]
+            }]
+        },
+        options: { responsive: true }
+    });
+</script>
+{% endblock %}

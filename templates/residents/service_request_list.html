@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Service Requests - {{ barangay.name }}</h2>
+        <div class="btn-group">
+            <a href="{% url 'residents:service_request_list' %}" class="btn btn-outline-secondary {% if not current_status %}active{% endif %}">All</a>
+            <a href="{% url 'residents:service_request_list' %}?status=PENDING" class="btn btn-outline-secondary {% if current_status == 'PENDING' %}active{% endif %}">Pending</a>
+            <a href="{% url 'residents:service_request_list' %}?status=APPROVED" class="btn btn-outline-secondary {% if current_status == 'APPROVED' %}active{% endif %}">Approved</a>
+            <a href="{% url 'residents:service_request_list' %}?status=REJECTED" class="btn btn-outline-secondary {% if current_status == 'REJECTED' %}active{% endif %}">Rejected</a>
+            <a href="{% url 'residents:service_request_list' %}?status=COMPLETED" class="btn btn-outline-secondary {% if current_status == 'COMPLETED' %}active{% endif %}">Completed</a>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Resident</th>
+                            <th>Service</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in requests %}
+                        <tr>
+                            <td>{{ r.resident.full_name }}</td>
+                            <td><strong>{{ r.service.name }}</strong></td>
+                            <td>{{ r.get_status_display }}</td>
+                            <td>{{ r.created_at|date:"M d, Y" }}</td>
+                            <td class="text-end">
+                                <a href="{% url 'residents:service_request_update' r.pk %}" class="btn btn-sm btn-outline-primary">Update</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">No service requests found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

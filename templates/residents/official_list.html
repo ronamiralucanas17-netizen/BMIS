@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Barangay Officials - {{ barangay.name }}</h2>
+        {% if user.is_barangay_admin %}
+            <a href="{% url 'residents:official_add' %}" class="btn btn-primary"><i class="fas fa-plus me-2"></i> Add Official</a>
+        {% endif %}
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-center">
+                <div class="col-auto">
+                    <label for="term" class="col-form-label">Filter by Term (Start Year):</label>
+                </div>
+                <div class="col-auto">
+                    <input type="number" name="term" id="term" class="form-control" placeholder="e.g. 2023" value="{{ current_term|default:'' }}">
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-secondary">Filter</button>
+                    {% if current_term %}
+                        <a href="{% url 'residents:official_list' %}" class="btn btn-outline-secondary">Clear</a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Name</th>
+                            <th>Position</th>
+                            <th>Term Start</th>
+                            <th>Term End</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for official in officials %}
+                        <tr>
+                            <td><strong>{{ official.name }}</strong></td>
+                            <td>{{ official.get_position_display }}</td>
+                            <td>{{ official.term_start|date:"M d, Y" }}</td>
+                            <td>{{ official.term_end|date:"M d, Y" }}</td>
+                            <td>
+                                {% if official.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.is_barangay_admin %}
+                                    <a href="{% url 'residents:official_edit' official.pk %}" class="btn btn-sm btn-info text-white"><i class="fas fa-edit"></i></a>
+                                    <a href="{% url 'residents:official_delete' official.pk %}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this official?')"><i class="fas fa-trash"></i></a>
+                                {% else %}
+                                    <span class="text-muted">No actions available</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center">No officials found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

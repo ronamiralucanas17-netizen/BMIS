@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1">Set Barangay Boundary</h2>
+            <p class="text-muted">Draw the official boundary for Barangay {{ barangay.name }}</p>
+        </div>
+        <a href="{% url 'gis_mapping:map_view' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i> Back to Map
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
+                <div class="card-body p-0">
+                    <div id="map" style="height: 600px;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 rounded-4 p-4">
+                <h5 class="fw-bold mb-3">Instructions</h5>
+                <ol class="small text-muted mb-4">
+                    <li>Use the <b>Polygon tool</b> <i class="fas fa-draw-polygon"></i> on the map.</li>
+                    <li>Click on the map to start drawing your boundary points.</li>
+                    <li>Continue clicking to outline your barangay's territory.</li>
+                    <li>Click the first point again to close the polygon.</li>
+                    <li>Once finished, click the <b>Save Boundary</b> button below.</li>
+                </ol>
+
+                <form method="POST" id="boundaryForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="boundary_json" id="boundary_json">
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg rounded-3 shadow-sm" id="saveBtn" disabled>
+                            <i class="fas fa-save me-2"></i> Save Boundary
+                        </button>
+                        <button type="button" class="btn btn-light" onclick="clearMap()">
+                            <i class="fas fa-trash-alt me-2"></i> Clear Drawing
+                        </button>
+                    </div>
+                </form>
+
+                {% if barangay.boundary %}
+                <div class="alert alert-info mt-4 mb-0 small rounded-3 border-0">
+                    <i class="fas fa-info-circle me-2"></i> 
+                    A boundary is already set. Drawing a new one will replace it.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .leaflet-draw-toolbar a {
+        background-color: white !important;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<!-- Include Leaflet Draw -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+
+<script>
+    let map;
+    let drawnItems;
+    let drawControl;
+    let updateJson;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize map
+        map = L.map('map').setView([11.0044, 124.6075], 13);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Layer for drawn items
+        drawnItems = new L.FeatureGroup();
+        map.addLayer(drawnItems);
+
+        // If existing boundary exists, show it
+        {% if barangay.boundary %}
+            let existingBoundary = L.geoJSON({{ barangay.boundary.json|safe }}, {
+                style: { color: '#343a40', fillOpacity: 0.2 }
+            });
+            existingBoundary.eachLayer(function(layer) {
+                drawnItems.addLayer(layer);
+            });
+            map.fitBounds(existingBoundary.getBounds());
+            document.getElementById('boundary_json').value = JSON.stringify(existingBoundary.toGeoJSON().features[0].geometry);
+            document.getElementById('saveBtn').disabled = false;
+        {% endif %}
+
+        // Initialize draw control
+        drawControl = new L.Control.Draw({
+            draw: {
+                polygon: {
+                    allowIntersection: false,
+                    showArea: true,
+                    shapeOptions: {
+                        color: '#0d6efd'
+                    }
+                },
+                polyline: false,
+                rectangle: false,
+                circle: false,
+                marker: false,
+                circlemarker: false
+            },
+            edit: {
+                featureGroup: drawnItems,
+                remove: true
+            }
+        });
+        map.addControl(drawControl);
+
+        // Handle created events
+        map.on(L.Draw.Event.CREATED, function (e) {
+            let layer = e.layer;
+            drawnItems.clearLayers(); // Only allow one boundary
+            drawnItems.addLayer(layer);
+            
+            updateJson();
+        });
+
+        // Handle edited events
+        map.on(L.Draw.Event.EDITED, function (e) {
+            updateJson();
+        });
+
+        // Handle deleted events
+        map.on(L.Draw.Event.DELETED, function (e) {
+            updateJson();
+        });
+
+        updateJson = function updateJson() {
+            let data = drawnItems.toGeoJSON();
+            if (data.features.length > 0) {
+                document.getElementById('boundary_json').value = JSON.stringify(data.features[0].geometry);
+                document.getElementById('saveBtn').disabled = false;
+            } else {
+                document.getElementById('boundary_json').value = "";
+                document.getElementById('saveBtn').disabled = true;
+            }
+        };
+
+        const form = document.getElementById('boundaryForm');
+        form.addEventListener('submit', function() {
+            if (typeof updateJson === 'function') updateJson();
+        });
+    });
+
+    function clearMap() {
+        drawnItems.clearLayers();
+        document.getElementById('boundary_json').value = "";
+        document.getElementById('saveBtn').disabled = true;
+    }
+</script>
+{% endblock %}

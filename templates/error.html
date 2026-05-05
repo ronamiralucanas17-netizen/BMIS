@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="alert alert-danger shadow-sm">
+        <h4 class="alert-heading"><i class="fas fa-exclamation-circle me-2"></i> Error Occurred</h4>
+        <p>{{ message }}</p>
+        <hr>
+        <p class="mb-0">Please contact the administrator or return to the <a href="{% url 'home' %}">Dashboard</a>.</p>
+    </div>
+</div>
+{% endblock %}

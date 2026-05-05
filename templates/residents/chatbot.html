@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-robot"></i> Barangay Assistant Chatbot</h5>
+                </div>
+                <div class="card-body" style="height: 400px; overflow-y: auto;" id="chat-window">
+                    <div class="mb-3 text-start">
+                        <div class="d-inline-block bg-light p-2 rounded">
+                            Hello! I'm your Barangay Assistant. How can I help you today?
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <form id="chat-form" class="input-group">
+                        <input type="text" id="user-input" class="form-control" placeholder="Ask about clearances, reports, profile updates..." required>
+                        <button class="btn btn-primary" type="submit">Send</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const chatWindow = document.getElementById('chat-window');
+    const chatForm = document.getElementById('chat-form');
+    const userInput = document.getElementById('user-input');
+
+    function appendMessage(message, isUser) {
+        const div = document.createElement('div');
+        div.className = `mb-3 ${isUser ? 'text-end' : 'text-start'}`;
+        div.innerHTML = `
+            <div class="d-inline-block ${isUser ? 'bg-primary text-white' : 'bg-light'} p-2 rounded">
+                ${message}
+            </div>
+        `;
+        chatWindow.appendChild(div);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+
+    chatForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const message = userInput.value;
+        if (!message) return;
+
+        appendMessage(message, true);
+        userInput.value = '';
+
+        fetch(`{% url 'residents:chatbot' %}?message=${encodeURIComponent(message)}`)
+            .then(response => response.json())
+            .then(data => {
+                appendMessage(data.response, false);
+            })
+            .catch(error => {
+                appendMessage("Sorry, I'm having trouble connecting right now.", false);
+            });
+    });
+</script>
+{% endblock %}

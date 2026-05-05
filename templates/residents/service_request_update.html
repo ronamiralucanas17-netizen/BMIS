@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm border-0 mt-4">
+            <div class="card-header bg-primary text-white p-3">
+                <h4 class="mb-0 text-center">Update Service Request</h4>
+            </div>
+            <div class="card-body p-4">
+                <div class="mb-3">
+                    <div><strong>Resident:</strong> {{ request_obj.resident.full_name }}</div>
+                    <div><strong>Service:</strong> {{ request_obj.service.name }}</div>
+                    <div><strong>Requested:</strong> {{ request_obj.created_at|date:"M d, Y" }}</div>
+                </div>
+                {% if request_obj.request_message %}
+                    <div class="mb-3">
+                        <div class="text-muted small">Message</div>
+                        <div>{{ request_obj.request_message|linebreaks }}</div>
+                    </div>
+                {% endif %}
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                    <div class="d-flex justify-content-between mt-3">
+                        <a href="{% url 'residents:service_request_list' %}" class="btn btn-outline-secondary">Back</a>
+                        <button type="submit" class="btn btn-primary">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

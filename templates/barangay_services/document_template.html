@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ doc.get_document_type_display }} - {{ doc.document_number }}</title>
+    <style>
+        body { font-family: 'Arial', sans-serif; line-height: 1.6; padding: 40px; }
+        .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #000; padding-bottom: 20px; }
+        .content { margin-bottom: 40px; }
+        .footer { margin-top: 80px; display: flex; justify-content: space-between; }
+        .signature-line { border-top: 1px solid #000; width: 200px; text-align: center; padding-top: 5px; }
+        .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 100px; opacity: 0.1; z-index: -1; }
+        @media print { .no-print { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="margin-bottom: 20px; text-align: right;">
+        <button onclick="window.print()">Print Document</button>
+    </div>
+
+    <div class="watermark">OFFICIAL COPY</div>
+
+    <div class="header">
+        <h2>REPUBLIC OF THE PHILIPPINES</h2>
+        <h3>PROVINCE OF [PROVINCE NAME]</h3>
+        <h4>MUNICIPALITY OF [MUNICIPALITY NAME]</h4>
+        <h4>BARANGAY {{ doc.barangay.name|upper }}</h4>
+        <br>
+        <h1>OFFICE OF THE PUNONG BARANGAY</h1>
+        <hr>
+        <h2>{{ doc.get_document_type_display|upper }}</h2>
+    </div>
+
+    <div class="content">
+        <p style="text-align: right;"><strong>Date:</strong> {{ doc.issued_at|date:"F d, Y" }}</p>
+        <p style="text-align: right;"><strong>Control No:</strong> {{ doc.document_number }}</p>
+
+        <p><strong>TO WHOM IT MAY CONCERN:</strong></p>
+
+        <p style="text-indent: 50px;">This is to certify that <strong>{{ doc.resident.full_name|upper }}</strong>, of legal age, {{ doc.resident.gender }}, {{ doc.resident.civil_status }}, and a citizen of {{ doc.resident.citizenship }}, is a bona fide resident of Barangay {{ doc.barangay.name }}, [Municipality], [Province].</p>
+
+        <p style="text-indent: 50px;">This certification is issued upon the request of the above-named person for the purpose of <strong>{{ doc.purpose }}</strong> and for whatever legal intent it may serve.</p>
+
+        <p style="text-indent: 50px;">Issued this {{ doc.issued_at|date:"jS" }} day of {{ doc.issued_at|date:"F, Y" }} at the Barangay Hall of {{ doc.barangay.name }}.</p>
+    </div>
+
+    <div class="footer">
+        <div>
+            <p>Certified by:</p>
+            <br><br>
+            <div class="signature-line">Barangay Secretary</div>
+        </div>
+        <div style="text-align: right;">
+            <p>Approved by:</p>
+            <br><br>
+            <div class="signature-line"><strong>HON. [CAPTAIN NAME]</strong><br>Punong Barangay</div>
+        </div>
+    </div>
+</body>
+</html>

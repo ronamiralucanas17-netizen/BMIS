@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 text-primary">Resident Records</h5>
+            <div class="d-flex gap-2">
+                <form method="GET" class="d-flex gap-2">
+                    <select name="profile_status" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="">All Profiles</option>
+                        <option value="PENDING_APPROVAL" {% if profile_status == 'PENDING_APPROVAL' %}selected{% endif %}>Pending Approval</option>
+                        <option value="APPROVED" {% if profile_status == 'APPROVED' %}selected{% endif %}>Approved</option>
+                        <option value="INCOMPLETE" {% if profile_status == 'INCOMPLETE' %}selected{% endif %}>Incomplete</option>
+                    </select>
+                    <select name="active_status" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="">All Status</option>
+                        <option value="active" {% if active_status == 'active' %}selected{% endif %}>Active</option>
+                        <option value="inactive" {% if active_status == 'inactive' %}selected{% endif %}>Inactive</option>
+                    </select>
+                    <input type="text" name="q" class="form-control form-control-sm" placeholder="Quick Search..." value="{{ query|default:'' }}">
+                    <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-search"></i></button>
+                    {% if query or active_status or profile_status %}
+                        <a href="{% url 'residents:resident_list' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-times"></i></a>
+                    {% endif %}
+                </form>
+                {% if user.is_any_barangay_official %}
+                <form method="post" action="{% url 'residents:import_residents_excel' %}" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
+                    {% csrf_token %}
+                    {{ upload_form.file }}
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Upload Excel</button>
+                </form>
+                <a href="{% url 'residents:download_residents_excel_template' %}" class="btn btn-sm btn-outline-secondary">
+                    Download Template
+                </a>
+                {% endif %}
+                <a href="{% url 'residents:add_resident' %}" class="btn btn-sm btn-success">
+                    <i class="fas fa-plus"></i> Add Resident
+                </a>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Full Name</th>
+                            <th>Age Status</th>
+                            <th>Gender</th>
+                            <th>Date of Birth</th>
+                            <th>Household #</th>
+                            <th>Barangay</th>
+                            <th>Status</th>
+                            <th>Active</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in residents %}
+                        <tr>
+                            <td>{{ r.full_name }}</td>
+                            <td>
+                                <span class="badge rounded-pill 
+                                    {% if r.computed_age_range == 'INFANT' or r.computed_age_range == 'CHILDHOOD' or r.computed_age_range == 'ADOLESCENCE' %}
+                                        bg-info
+                                    {% elif r.computed_age_range == 'YOUNG_ADULTHOOD' or r.computed_age_range == 'ADULTHOOD' %}
+                                        bg-success
+                                    {% elif r.computed_age_range == 'MIDDLE_AGE' %}
+                                        bg-warning text-dark
+                                    {% else %}
+                                        bg-danger
+                                    {% endif %}">
+                                    {{ r.computed_age_range_display|default:"Unknown" }}
+                                </span>
+                            </td>
+                            <td>{{ r.get_gender_display }}</td>
+                            <td>{{ r.date_of_birth }}</td>
+                            <td>{{ r.household.household_number }}</td>
+                            <td>{{ r.household.barangay }}</td>
+                            <td>
+                                {% if r.profile_status == 'INCOMPLETE' %}
+                                    <span class="badge bg-danger">Need to fill up</span>
+                                {% else %}
+                                    <span class="badge bg-{% if r.profile_status == 'APPROVED' %}success{% else %}warning text-dark{% endif %}">
+                                        {{ r.get_profile_status_display }}
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if r.is_active %}
+                                    <span class="badge bg-primary">Active</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'residents:resident_detail' r.pk %}" class="btn btn-sm btn-outline-info"><i class="fas fa-eye"></i> View</a>
+                                <a href="{% url 'residents:update_resident' r.pk %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-edit"></i> Edit</a>
+                                {% if user.is_any_barangay_official and r.profile_status == 'PENDING_APPROVAL' %}
+                                    <form action="{% url 'residents:verify_resident' r.id %}" method="post" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-success"><i class="fas fa-check"></i> Approve</button>
+                                    </form>
+                                    <form action="{% url 'residents:reject_resident' r.id %}" method="post" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-times"></i> Reject</button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center">No resident records found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
