@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-users me-2"></i> {{ title }}</h2>
+        <a href="{% url 'gis_mapping:map_view' %}" class="btn btn-secondary">
+            <i class="fas fa-map-marked-alt me-1"></i> Back to Map
+        </a>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Resident Code</th>
+                            <th>Full Name</th>
+                            <th>Gender</th>
+                            <th>Age Range</th>
+                            <th>Purok</th>
+                            <th>Barangay</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for resident in residents %}
+                        <tr>
+                            <td><code>{{ resident.resident_code }}</code></td>
+                            <td>{{ resident.full_name }}</td>
+                            <td>{{ resident.get_gender_display }}</td>
+                            <td>
+                                <span class="badge {% if resident.computed_age_range == 'INFANT' or resident.computed_age_range == 'CHILDHOOD' or resident.computed_age_range == 'ADOLESCENCE' %}bg-success{% elif resident.computed_age_range == 'OLD_AGE' or resident.computed_age_range == 'SENIOR_CITIZEN' %}bg-info{% else %}bg-secondary{% endif %}">
+                                    {{ resident.computed_age_range_display }}
+                                </span>
+                            </td>
+                            <td>{{ resident.zone_street_purok }}</td>
+                            <td>{{ resident.barangay.name }}</td>
+                            <td>
+                                <a href="{% url 'residents:resident_detail' resident.id %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i> View Profile
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4 text-muted">No residents found for this demographic category.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
